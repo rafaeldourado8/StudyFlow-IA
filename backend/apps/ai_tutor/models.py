@@ -11,14 +11,18 @@ class TutorInteraction(models.Model):
     class Meta: ordering = ["-created_at"]
     def __str__(self): return f"{self.user.email} - {self.subject}"
 
-# --- NOVO MODELO DE CACHE ---
+# --- CORREÇÃO AQUI ---
 class TopicCache(models.Model):
-    # normalizaremos o termo (ex: "docker" tudo minúsculo) para facilitar a busca
-    topic = models.CharField(max_length=255, unique=True, db_index=True) 
-    # Armazena o JSON completo (definition, origin, etc)
+    # Removido unique=True, mantido apenas db_index=True para performance
+    topic = models.CharField(max_length=255, db_index=True) 
+    
     data = models.JSONField() 
-    # Armazena a profundidade para saber se é initial ou deep
     depth = models.CharField(max_length=20, default="initial")
     created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        # Garante que não existam dois "redis" do tipo "initial", 
+        # mas permite "redis" + "initial" E "redis" + "deep"
+        unique_together = ('topic', 'depth')
 
     def __str__(self): return f"Cache: {self.topic} ({self.depth})"
