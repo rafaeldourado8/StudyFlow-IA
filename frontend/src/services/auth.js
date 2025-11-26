@@ -1,21 +1,27 @@
 import api from './api';
 
 export const authService = {
-  async login(email, password) {
-    // Django REST Framework prefere JSON por padrão
-    const payload = {
-      email: email,
-      password: password
-    };
-
-    // Rota correta conforme seu urls.py
-    const response = await api.post('/api/auth/login/', payload);
+  /**
+   * Realiza o login enviando email e senha.
+   */
+  login: async (email, password) => {
+    // Faz o POST para o endpoint de login do Django
+    const response = await api.post('/api/auth/login/', { 
+      email, 
+      password 
+    });
+    
+    // Retorna os dados (access, refresh, user, etc)
     return response.data;
   },
 
-  async getCurrentUser() {
-    // Rota correta para o "Me"
-    const response = await api.get('/api/users/auth/me/');
+  /**
+   * Opcional: Método para refresh manual, caso precise no futuro
+   */
+  refreshToken: async (refresh) => {
+    const response = await api.post('/api/auth/refresh/', { 
+      refresh 
+    });
     return response.data;
-  },
+  }
 };

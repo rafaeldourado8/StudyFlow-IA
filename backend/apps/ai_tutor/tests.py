@@ -10,31 +10,30 @@ class AITutorTest(APITestCase):
     def setUp(self):
         self.user = User.objects.create_user(email="student@test.com", password="password123", name="Student")
         self.client.force_authenticate(user=self.user)
-        self.url = reverse('ask-tutor') # /api/ai/ask/
+        self.url = reverse('ask-tutor')
 
-    # O @patch intercepta a chamada para a OpenAI dentro do services.py
-    @patch('apps.ai_tutor.services.OpenAI') 
-    def test_ask_tutor_success(self, mock_openai):
-        """Testa o fluxo de pergunta para a IA com sucesso (Mockado)"""
+    # Mockamos o genai.GenerativeModel
+    @patch('apps.ai_tutor.services.genai.GenerativeModel') 
+    def test_ask_tutor_success(self, mock_model_class):
+        """Testa o fluxo de pergunta para o Gemini com sucesso (Mockado)"""
         
-        # 1. Configura o Mock para retornar uma resposta falsa
-        mock_client = MagicMock()
-        mock_completion = MagicMock()
-        mock_completion.choices[0].message.content = "Esta é uma resposta simulada da IA."
+        # 1. Configura o Mock
+        mock_instance = MagicMock()
+        mock_response = MagicMock()
+        mock_response.text = "Esta é uma resposta simulada do Gemini."
         
-        mock_client.chat.completions.create.return_value = mock_completion
-        mock_openai.return_value = mock_client # Quando chamar OpenAI(), devolve nosso cliente falso
+        mock_instance.generate_content.return_value = mock_response
+        mock_model_class.return_value = mock_instance # Quando instanciar GenerativeModel, devolve nosso mock
 
-        # 2. Faz a requisição real para sua API
+        # 2. Faz a requisição
         payload = {"question": "O que é Python?", "subject": "Programação"}
         response = self.client.post(self.url, payload)
 
-        # 3. Verifica se a API respondeu corretamente
+        # 3. Verifica
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data['answer'], "Esta é uma resposta simulada da IA.")
+        self.assertEqual(response.data['answer'], "Esta é uma resposta simulada do Gemini.")
 
     def test_ask_tutor_unauthenticated(self):
-        """Testa se bloqueia usuário não logado"""
         self.client.logout()
         response = self.client.post(self.url, {"question": "Ola"})
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)

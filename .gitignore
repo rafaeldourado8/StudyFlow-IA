@@ -1,2 +1,11 @@
 .env
 venv/
+__pycache__/
+*.pyc
+.DS_Store
+
+# Node - Importante!
+node_modules/
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/

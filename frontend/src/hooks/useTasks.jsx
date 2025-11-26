@@ -15,6 +15,12 @@ export const TasksProvider = ({ children }) => {
   const [tasks, setTasks] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
 
+  // Helper para normalizar a tarefa (adiciona o campo 'completed' baseado no status)
+  const normalizeTask = (task) => ({
+    ...task,
+    completed: task.status === 'completed'
+  });
+
   // Fetch tasks from backend
   const fetchTasks = async () => {
     // Se não tiver token, nem tenta buscar (evita erro 401 no console ao iniciar deslogado)
@@ -25,8 +31,12 @@ export const TasksProvider = ({ children }) => {
       const response = await api.get('/api/dashboard/tasks/');
       // Django REST com paginação retorna { count: ..., results: [...] }
       // Se a paginação estiver desligada, retorna [...] direto.
-      const data = response.data.results || response.data;
-      setTasks(data);
+      const rawData = response.data.results || response.data;
+      
+      // Normaliza os dados para o frontend entender o 'completed'
+      const normalizedTasks = rawData.map(normalizeTask);
+      
+      setTasks(normalizedTasks);
     } catch (error) {
       console.error('Failed to fetch tasks:', error);
     } finally {
@@ -41,8 +51,12 @@ export const TasksProvider = ({ children }) => {
         title,
         status: 'pending' // Define status inicial explícito
       });
+      
+      // Normaliza a resposta antes de adicionar ao estado
+      const newTask = normalizeTask(response.data);
+      
       // Adiciona a nova tarefa no topo da lista
-      setTasks(prev => [response.data, ...prev]);
+      setTasks(prev => [newTask, ...prev]);
     } catch (error) {
       console.error('Failed to add task:', error);
       throw error;
@@ -54,8 +68,7 @@ export const TasksProvider = ({ children }) => {
     const task = tasks.find(t => t.id === taskId);
     if (!task) return;
 
-    // Lógica para alternar entre 'completed' e 'pending' baseado no seu Model Django
-    // Se estiver 'completed', volta para 'pending'. Caso contrário, vira 'completed'.
+    // Lógica para alternar entre 'completed' e 'pending'
     const newStatus = task.status === 'completed' ? 'pending' : 'completed';
 
     try {
@@ -64,8 +77,11 @@ export const TasksProvider = ({ children }) => {
         status: newStatus
       });
 
-      // Atualiza o estado local com a resposta do servidor
-      setTasks(prev => prev.map(t => t.id === taskId ? response.data : t));
+      // Normaliza a tarefa atualizada vinda do backend
+      const updatedTask = normalizeTask(response.data);
+
+      // Atualiza o estado local
+      setTasks(prev => prev.map(t => t.id === taskId ? updatedTask : t));
     } catch (error) {
       console.error('Failed to update task:', error);
     }

@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion';
 import { Home, CheckSquare, MessageCircle, User } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import GlassCard from '../ui/GlassCard';
 
 const Navigation = () => {
   const location = useLocation();

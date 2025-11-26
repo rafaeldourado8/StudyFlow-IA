@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Send, Bot, User } from 'lucide-react';
-import GlassCard from '../ui/GlassCard';
-import GradientButton from '../ui/GradientButton';
+import { Send, Bot, User, Loader2 } from 'lucide-react';
+import GlassCard from '../ui/GlassCard.jsx';
+import GradientButton from '../ui/GradientButton.jsx';
+import { aiService } from '../../services/ai.js'; // Importando o serviço real
 
 const ChatInterface = () => {
   const [message, setMessage] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
   const [messages, setMessages] = useState([
     {
       id: 1,
@@ -15,31 +17,49 @@ const ChatInterface = () => {
     }
   ]);
 
-  const handleSendMessage = (e) => {
+  const handleSendMessage = async (e) => {
     e.preventDefault();
-    if (!message.trim()) return;
+    if (!message.trim() || isLoading) return;
 
-    // Add user message
+    const userMessageText = message;
+
+    // 1. Add user message immediately
     const userMessage = {
-      id: messages.length + 1,
-      text: message,
+      id: Date.now(),
+      text: userMessageText,
       isUser: true,
       timestamp: new Date()
     };
 
     setMessages(prev => [...prev, userMessage]);
     setMessage('');
+    setIsLoading(true);
 
-    // Simulate AI response
-    setTimeout(() => {
+    try {
+      // 2. Send to backend
+      const data = await aiService.sendMessage(userMessageText);
+
+      // 3. Add AI response
       const aiMessage = {
-        id: messages.length + 2,
-        text: "I understand your question. Let me help you break this down into manageable parts...",
+        id: Date.now() + 1,
+        text: data.answer, // Backend returns 'answer'
         isUser: false,
         timestamp: new Date()
       };
       setMessages(prev => [...prev, aiMessage]);
-    }, 1000);
+
+    } catch (error) {
+      console.error("Failed to get AI response", error);
+      const errorMessage = {
+        id: Date.now() + 2,
+        text: "Sorry, I'm having trouble connecting to my brain right now. Please try again later.",
+        isUser: false,
+        timestamp: new Date()
+      };
+      setMessages(prev => [...prev, errorMessage]);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -76,7 +96,7 @@ const ChatInterface = () => {
               </div>
               
               <GlassCard className={`p-4 ${msg.isUser ? 'bg-white/10' : 'bg-purple-900/20'}`}>
-                <p className="text-white text-sm">{msg.text}</p>
+                <p className="text-white text-sm whitespace-pre-wrap">{msg.text}</p>
                 <p className="text-xs text-gray-400 mt-2">
                   {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                 </p>
@@ -84,6 +104,26 @@ const ChatInterface = () => {
             </div>
           </motion.div>
         ))}
+
+        {/* Loading Indicator */}
+        {isLoading && (
+          <motion.div 
+            initial={{ opacity: 0 }} 
+            animate={{ opacity: 1 }} 
+            className="flex justify-start"
+          >
+            <div className="flex items-center gap-3 max-w-[80%]">
+              <div className="w-8 h-8 rounded-full flex items-center justify-center bg-purple-500/20 border border-purple-500/30">
+                <Bot className="w-4 h-4 text-purple-300" />
+              </div>
+              <GlassCard className="p-4 bg-purple-900/20 flex items-center gap-2">
+                <span className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
+                <span className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
+                <span className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
+              </GlassCard>
+            </div>
+          </motion.div>
+        )}
       </div>
 
       {/* Message Input */}
@@ -95,14 +135,15 @@ const ChatInterface = () => {
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               placeholder="Ask me anything about your studies..."
-              className="flex-1 bg-transparent border-none text-white placeholder-gray-400 focus:outline-none"
+              className="flex-1 bg-transparent border-none text-white placeholder-gray-400 focus:outline-none disabled:opacity-50"
+              disabled={isLoading}
             />
             <GradientButton
               type="submit"
-              disabled={!message.trim()}
-              className="p-3"
+              disabled={!message.trim() || isLoading}
+              className="p-3 flex items-center justify-center"
             >
-              <Send className="w-4 h-4" />
+              {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
             </GradientButton>
           </form>
         </GlassCard>

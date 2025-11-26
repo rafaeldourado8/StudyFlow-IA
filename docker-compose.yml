@@ -18,7 +18,7 @@ services:
     environment:
       DB_HOST: postgres_db
       REDIS_HOST: redis_cache
-      CELERY_BROKER_URL: amqp://${RABBITMQ_USER}:${RABBITMQ_PASS}@rabbitmq:5672//
+      CELERY_BROKER_URL: amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@rabbitmq:5672//
       CELERY_RESULT_BACKEND: db+postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres_db:5432/${POSTGRES_DB}
     depends_on:
       postgres_db:
@@ -28,7 +28,7 @@ services:
     networks:
       - studyflow_network
     restart: unless-stopped
-    # Healthcheck para garantir que o Nginx só inicie depois do backend estar pronto
+    # Healthcheck to ensure Nginx only starts after the backend is ready
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:8000/api/auth/login/ || exit 1"]
       interval: 30s
@@ -47,7 +47,7 @@ services:
     environment:
       DB_HOST: postgres_db
       REDIS_HOST: redis_cache
-      CELERY_BROKER_URL: amqp://${RABBITMQ_USER}:${RABBITMQ_PASS}@rabbitmq:5672//
+      CELERY_BROKER_URL: amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@rabbitmq:5672//
       CELERY_RESULT_BACKEND: db+postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres_db:5432/${POSTGRES_DB}
     depends_on:
       backend:
@@ -83,7 +83,7 @@ services:
       - studyflow_network
     restart: unless-stopped
 
-  # --- INFRAESTRUTURA (Banco, Redis, RabbitMQ) ---
+  # --- INFRASTRUCTURE (Database, Redis, RabbitMQ) ---
   postgres_db:
     image: postgres:15-alpine
     container_name: studyflow_postgres
@@ -117,6 +117,7 @@ services:
   rabbitmq:
     image: rabbitmq:3.13-management-alpine
     container_name: studyflow_rabbitmq
+    # RabbitMQ will now use the RABBITMQ_DEFAULT_* variables from .env
     env_file:
       - .env
     networks:
