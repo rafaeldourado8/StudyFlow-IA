@@ -6,9 +6,10 @@ services:
       dockerfile: Dockerfile
     container_name: studyflow_backend
     command: >
-      sh -c "python manage.py migrate &&
-             python manage.py collectstatic --noinput &&
-             gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 4"
+      sh -c "python wait_for_db.py &&
+      python manage.py migrate &&
+      python manage.py collectstatic --noinput &&
+      gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 4"
     volumes:
       - ./backend/logs:/app/logs
       - backend_static:/app/staticfiles
@@ -28,7 +29,6 @@ services:
     networks:
       - studyflow_network
     restart: unless-stopped
-    # Healthcheck to ensure Nginx only starts after the backend is ready
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:8000/api/auth/login/ || exit 1"]
       interval: 30s
@@ -41,7 +41,9 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     container_name: studyflow_backend_worker
-    command: celery -A config worker --loglevel=info
+    command: >
+      sh -c "python wait_for_db.py &&
+      celery -A config worker --loglevel=info"
     env_file:
       - .env
     environment:
@@ -52,6 +54,8 @@ services:
     depends_on:
       backend:
         condition: service_started
+      rabbitmq:
+        condition: service_healthy
     networks:
       - studyflow_network
     restart: unless-stopped
@@ -117,9 +121,10 @@ services:
   rabbitmq:
     image: rabbitmq:3.13-management-alpine
     container_name: studyflow_rabbitmq
-    # RabbitMQ will now use the RABBITMQ_DEFAULT_* variables from .env
     env_file:
       - .env
+    # CORREÇÃO: Variável depreciada removida.
+    # O RabbitMQ usará a configuração padrão de memória.
     networks:
       - studyflow_network
     healthcheck:
