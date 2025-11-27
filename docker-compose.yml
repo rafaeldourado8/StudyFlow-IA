@@ -30,7 +30,7 @@ services:
       - studyflow_network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8000/api/auth/login/ || exit 1"]
+      test: ["CMD-SHELL", "python3 -c 'import urllib.request; exit(0 if urllib.request.urlopen(\"http://localhost:8000/api/auth/login/\").getcode() in [200, 401, 405] else 1)' || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -123,8 +123,6 @@ services:
     container_name: studyflow_rabbitmq
     env_file:
       - .env
-    # CORREÇÃO: Variável depreciada removida.
-    # O RabbitMQ usará a configuração padrão de memória.
     networks:
       - studyflow_network
     healthcheck:

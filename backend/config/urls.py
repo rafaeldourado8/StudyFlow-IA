@@ -19,4 +19,6 @@ urlpatterns = [
     path('api/users/', include('apps.usuarios.urls')),
     
     path('prometheus/', include('django_prometheus.urls')),
+
+    path('api/arena/', include('apps.arena.urls')),
 ]

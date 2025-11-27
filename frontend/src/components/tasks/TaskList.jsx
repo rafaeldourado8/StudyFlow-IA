@@ -18,13 +18,13 @@ const TaskList = () => {
         animate={{ opacity: 1, y: 0 }}
         className="mb-6"
       >
-        <h1 className="text-3xl font-bold text-white mb-2">Tasks</h1>
+        <h1 className="text-3xl font-bold text-white mb-2">Conhecimentos</h1>
         <p className="text-gray-400">
-          {tasks.filter(t => t.completed).length} of {tasks.length} completed
+          {tasks.filter(t => t.completed).length} de {tasks.length} tópicos dominados
         </p>
       </motion.div>
 
-      {/* Task List */}
+      {/* Knowledge List (Antiga Task List) */}
       <div className="space-y-2">
         <AnimatePresence>
           {tasks.map((task) => (
@@ -39,7 +39,7 @@ const TaskList = () => {
 
         {tasks.length === 0 && (
           <GlassCard className="p-8 text-center">
-            <p className="text-gray-400">No tasks yet. Add one to get started!</p>
+            <p className="text-gray-400">Seu fluxo de conhecimento está vazio. Adicione um tópico para começar a aprender!</p>
           </GlassCard>
         )}
       </div>
@@ -54,7 +54,7 @@ const TaskList = () => {
         <Plus className="w-6 h-6 text-white" />
       </motion.button>
 
-      {/* Add Task Modal */}
+      {/* Add Topic Modal (Antigo Add Task Modal) */}
       <AddTaskModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}

@@ -15,13 +15,42 @@ class AIService:
 
     def get_pedagogical_answer(self, question: str, subject: str = "Geral") -> str:
         """
-        Retorna uma resposta socrática para o chat (String simples).
+        AI TUTOR (CHAT): Resposta humanizada, didática e rica em contexto.
+        Foca em explicar com analogias do mundo real e referências.
         """
         if not self.is_configured: return "Erro: API Key não configurada."
         try:
-            model = genai.GenerativeModel("gemini-2.0-flash", system_instruction="Tutor Socrático. Ajude o aluno a pensar.")
-            response = model.generate_content(f"{subject}: {question}")
+            # --- PERSONA: PROFESSOR SÊNIOR E CARISMÁTICO ---
+            system_instruction = """
+            Você é o 'AI Tutor', um mentor de tecnologia sênior, apaixonado por ensinar. 
+            Sua missão é explicar conceitos complexos de forma simples, como se estivesse conversando num café.
+
+            ⚠️ REGRAS DE RESPOSTA (Obrigatórias):
+            
+            1. 🧠 **Explicação Simples**: Comece respondendo a dúvida de forma direta, sem "rodeios", usando linguagem natural e acessível.
+            
+            2. 💡 **A Analogia de Ouro**: Crie OBRIGATORIAMENTE uma metáfora do mundo real (não técnico) para ilustrar o conceito. 
+               Ex: (API = Garçom, Variável = Caixa, CPU = Maestro). Seja criativo!
+            
+            3. 🤓 **Momento Curiosidade**: Traga um fato histórico, uma origem engraçada do termo ou um "Easter Egg" técnico sobre o assunto.
+            
+            4. 📚 **Para Aprofundar**: Liste 2 ou 3 referências de leitura (Livros clássicos, Artigos famosos ou Documentações oficiais).
+
+            Tom: Empático, motivador e levemente bem-humorado. Use emojis para separar as seções.
+            Idioma: Português do Brasil.
+            """
+            
+            model = genai.GenerativeModel(
+                "gemini-2.0-flash", 
+                system_instruction=system_instruction
+            )
+            
+            # Adiciona contexto para a IA saber o que o aluno está estudando
+            full_prompt = f"Contexto: O aluno está estudando {subject}. Pergunta: {question}"
+            
+            response = model.generate_content(full_prompt)
             return response.text
+            
         except Exception as e: return f"Erro IA: {str(e)}"
 
     def analyze_topic(self, topic: str, depth: str = "initial") -> dict:

@@ -3,9 +3,7 @@
  * Creates connections between tasks based on semantic similarity
  */
 
-// Natural language processing utilities for task comparison
 export const NLPUtils = {
-  // Extract keywords from task title
   extractKeywords(text) {
     if (!text) return [];
     
@@ -25,7 +23,6 @@ export const NLPUtils = {
       );
   },
 
-  // Calculate similarity between two task titles using Jaccard index
   calculateSimilarity(title1, title2) {
     const keywords1 = new Set(this.extractKeywords(title1));
     const keywords2 = new Set(this.extractKeywords(title2));
@@ -38,8 +35,9 @@ export const NLPUtils = {
     return intersection.size / union.size;
   },
 
-  // Find common topics across multiple tasks
   findCommonTopics(tasks) {
+    if (!Array.isArray(tasks)) return [];
+    
     const topicFrequency = {};
     
     tasks.forEach(task => {
@@ -49,7 +47,6 @@ export const NLPUtils = {
       });
     });
     
-    // Return topics that appear in at least 2 tasks
     return Object.entries(topicFrequency)
       .filter(([_, count]) => count >= 2)
       .sort((a, b) => b[1] - a[1])
@@ -57,39 +54,25 @@ export const NLPUtils = {
   }
 };
 
-// Graph layout and node positioning algorithms
 export const GraphLayout = {
-  // Force-directed graph simulation parameters
   FORCE_CONFIG: {
-    charge: {
-      strength: -30,
-      distanceMin: 1,
-      distanceMax: 200
-    },
-    link: {
-      distance: 50,
-      strength: 0.1
-    },
-    center: {
-      strength: 0.1
-    }
+    charge: { strength: -30, distanceMin: 1, distanceMax: 200 },
+    link: { distance: 50, strength: 0.1 },
+    center: { strength: 0.1 }
   },
 
-  // Calculate initial positions in a circular layout
   calculateCircularLayout(nodes, centerX, centerY, radius) {
     const angleStep = (2 * Math.PI) / nodes.length;
-    
     return nodes.map((node, index) => ({
       ...node,
       x: centerX + radius * Math.cos(index * angleStep),
       y: centerY + radius * Math.sin(index * angleStep),
-      vx: 0,
-      vy: 0
+      vx: 0, vy: 0
     }));
   },
 
-  // Calculate positions in a hierarchical layout based on completion status
   calculateHierarchicalLayout(tasks, width, height) {
+    if (!Array.isArray(tasks)) return [];
     const completedTasks = tasks.filter(task => task.completed);
     const pendingTasks = tasks.filter(task => !task.completed);
     
@@ -111,28 +94,24 @@ export const GraphLayout = {
   }
 };
 
-// Main graph data generator
 export const GraphDataGenerator = {
-  // Convert tasks to graph nodes and links
   tasksToGraphData(tasks, similarityThreshold = 0.3) {
-    if (!tasks || tasks.length === 0) {
+    // --- CORREÇÃO: Validação de Segurança ---
+    if (!Array.isArray(tasks) || tasks.length === 0) {
       return { nodes: [], links: [] };
     }
 
-    // Create nodes from tasks
     const nodes = tasks.map((task, index) => ({
       id: task.id,
       title: task.title,
       completed: task.completed,
       priority: task.priority || 'medium',
       createdAt: task.created_at || task.createdAt,
-      // Visual properties
-      val: task.completed ? 3 : 5, // Size based on completion
-      color: task.completed ? '#10b981' : '#8b5cf6', // Green for completed, purple for pending
+      val: task.completed ? 3 : 5,
+      color: task.completed ? '#10b981' : '#8b5cf6',
       group: task.completed ? 'completed' : 'pending'
     }));
 
-    // Create links based on semantic similarity
     const links = [];
     const processedPairs = new Set();
 
@@ -141,10 +120,7 @@ export const GraphDataGenerator = {
         const pairKey = `${Math.min(i, j)}-${Math.max(i, j)}`;
         
         if (!processedPairs.has(pairKey)) {
-          const similarity = NLPUtils.calculateSimilarity(
-            tasks[i].title, 
-            tasks[j].title
-          );
+          const similarity = NLPUtils.calculateSimilarity(tasks[i].title, tasks[j].title);
           
           if (similarity >= similarityThreshold) {
             links.push({
@@ -152,12 +128,10 @@ export const GraphDataGenerator = {
               target: tasks[j].id,
               value: similarity,
               strength: similarity,
-              // Visual properties
-              color: `rgba(139, 92, 246, ${0.3 + similarity * 0.7})`, // Purple with opacity based on similarity
+              color: `rgba(139, 92, 246, ${0.3 + similarity * 0.7})`,
               width: 1 + similarity * 2
             });
           }
-          
           processedPairs.add(pairKey);
         }
       }
@@ -166,38 +140,37 @@ export const GraphDataGenerator = {
     return { nodes, links };
   },
 
-  // Enhanced graph data with topic clusters
   tasksToClusteredGraphData(tasks, similarityThreshold = 0.2) {
     const baseGraph = this.tasksToGraphData(tasks, similarityThreshold);
     const topics = NLPUtils.findCommonTopics(tasks);
     
-    // Add topic nodes
     const topicNodes = topics.map((topic, index) => ({
       id: `topic-${topic}`,
       title: topic,
       isTopic: true,
-      val: 8, // Larger size for topic nodes
-      color: '#ec4899', // Pink for topics
+      val: 8,
+      color: '#ec4899',
       group: 'topic'
     }));
 
-    // Connect tasks to their topics
     const topicLinks = [];
-    tasks.forEach(task => {
-      const taskKeywords = new Set(NLPUtils.extractKeywords(task.title));
-      topics.forEach(topic => {
-        if (taskKeywords.has(topic)) {
-          topicLinks.push({
-            source: task.id,
-            target: `topic-${topic}`,
-            value: 0.5,
-            color: 'rgba(236, 72, 153, 0.4)',
-            width: 1,
-            isTopicLink: true
-          });
-        }
-      });
-    });
+    if (Array.isArray(tasks)) {
+        tasks.forEach(task => {
+        const taskKeywords = new Set(NLPUtils.extractKeywords(task.title));
+        topics.forEach(topic => {
+            if (taskKeywords.has(topic)) {
+            topicLinks.push({
+                source: task.id,
+                target: `topic-${topic}`,
+                value: 0.5,
+                color: 'rgba(236, 72, 153, 0.4)',
+                width: 1,
+                isTopicLink: true
+            });
+            }
+        });
+        });
+    }
 
     return {
       nodes: [...baseGraph.nodes, ...topicNodes],
@@ -205,75 +178,47 @@ export const GraphDataGenerator = {
     };
   },
 
-  // Generate sample data for development/demo
   generateSampleGraphData() {
     const sampleTasks = [
-      { id: 1, title: 'Study React Hooks and State Management', completed: false },
-      { id: 2, title: 'Practice React useEffect and Context API', completed: true },
-      { id: 3, title: 'Learn Python Data Structures', completed: false },
-      { id: 4, title: 'Study Python Algorithms and Complexity', completed: false },
-      { id: 5, title: 'Review Machine Learning Fundamentals', completed: true },
-      { id: 6, title: 'Practice Neural Network Architectures', completed: false },
-      { id: 7, title: 'Read about AI Ethics and Safety', completed: false },
-      { id: 8, title: 'Study Mathematics for Machine Learning', completed: true }
+      { id: 1, title: 'Study React Hooks', completed: false },
+      { id: 2, title: 'Practice Python', completed: true }
     ];
-
     return this.tasksToClusteredGraphData(sampleTasks, 0.1);
   }
 };
 
-// Graph interaction and visualization helpers
 export const GraphInteractions = {
-  // Calculate node highlight based on connections
   getConnectedNodes(nodeId, links, includeSelf = true) {
     const connected = new Set();
     if (includeSelf) connected.add(nodeId);
 
     links.forEach(link => {
-      if (link.source.id === nodeId || link.source === nodeId) {
-        connected.add(link.target.id || link.target);
-      }
-      if (link.target.id === nodeId || link.target === nodeId) {
-        connected.add(link.source.id || link.source);
-      }
+      if (link.source.id === nodeId || link.source === nodeId) connected.add(link.target.id || link.target);
+      if (link.target.id === nodeId || link.target === nodeId) connected.add(link.source.id || link.source);
     });
 
     return Array.from(connected);
   },
 
-  // Filter graph data based on search term
   filterGraphData(graphData, searchTerm) {
     if (!searchTerm) return graphData;
 
     const searchLower = searchTerm.toLowerCase();
     const matchingNodeIds = new Set();
 
-    // Find nodes that match search
     graphData.nodes.forEach(node => {
-      if (node.title.toLowerCase().includes(searchLower)) {
-        matchingNodeIds.add(node.id);
-      }
+      if (node.title.toLowerCase().includes(searchLower)) matchingNodeIds.add(node.id);
     });
 
-    // Find connected nodes
     const connectedNodes = new Set(matchingNodeIds);
     graphData.links.forEach(link => {
       const sourceId = link.source.id || link.source;
       const targetId = link.target.id || link.target;
-      
-      if (matchingNodeIds.has(sourceId)) {
-        connectedNodes.add(targetId);
-      }
-      if (matchingNodeIds.has(targetId)) {
-        connectedNodes.add(sourceId);
-      }
+      if (matchingNodeIds.has(sourceId)) connectedNodes.add(targetId);
+      if (matchingNodeIds.has(targetId)) connectedNodes.add(sourceId);
     });
 
-    // Filter nodes and links
-    const filteredNodes = graphData.nodes.filter(node => 
-      connectedNodes.has(node.id)
-    );
-    
+    const filteredNodes = graphData.nodes.filter(node => connectedNodes.has(node.id));
     const filteredLinks = graphData.links.filter(link => {
       const sourceId = link.source.id || link.source;
       const targetId = link.target.id || link.target;
@@ -283,8 +228,9 @@ export const GraphInteractions = {
     return { nodes: filteredNodes, links: filteredLinks };
   },
 
-  // Calculate graph statistics
   calculateGraphStats(graphData) {
+    if (!graphData || !graphData.nodes) return { totalNodes: 0, totalLinks: 0, completedNodes: 0, topicNodes: 0, averageConnections: 0 };
+    
     const stats = {
       totalNodes: graphData.nodes.length,
       totalLinks: graphData.links.length,
@@ -293,14 +239,11 @@ export const GraphInteractions = {
       averageConnections: graphData.links.length / Math.max(graphData.nodes.length, 1),
       connectivity: (2 * graphData.links.length) / Math.max(graphData.nodes.length * (graphData.nodes.length - 1), 1)
     };
-
     return stats;
   }
 };
 
-// Custom force simulation functions for react-force-graph
 export const ForceSimulation = {
-  // Custom force to keep nodes within bounds
   boundingBoxForce(width, height, padding = 50) {
     return (alpha) => {
       return (node) => {
@@ -310,21 +253,17 @@ export const ForceSimulation = {
     };
   },
 
-  // Custom force for topic cluster attraction
   clusterForce(nodes, strength = 0.1) {
     const clusters = {};
     nodes.forEach(node => {
       if (node.group && node.group !== 'topic') {
-        if (!clusters[node.group]) {
-          clusters[node.group] = { x: 0, y: 0, count: 0 };
-        }
+        if (!clusters[node.group]) clusters[node.group] = { x: 0, y: 0, count: 0 };
         clusters[node.group].x += node.x;
         clusters[node.group].y += node.y;
         clusters[node.group].count += 1;
       }
     });
 
-    // Calculate cluster centers
     Object.keys(clusters).forEach(group => {
       clusters[group].x /= clusters[group].count;
       clusters[group].y /= clusters[group].count;
@@ -342,7 +281,6 @@ export const ForceSimulation = {
   }
 };
 
-// Export default utility object
 export default {
   NLPUtils,
   GraphLayout,

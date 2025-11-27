@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { Home, CheckSquare, MessageCircle, User } from 'lucide-react';
+import { Home, BookOpen, Swords, User } from 'lucide-react'; // Ícones atualizados
 import { useLocation, useNavigate } from 'react-router-dom';
 import GlassCard from '../ui/GlassCard';
 
@@ -9,9 +9,9 @@ const Navigation = () => {
 
   const tabs = [
     { path: '/', icon: Home, label: 'Home' },
-    { path: '/tasks', icon: CheckSquare, label: 'Tasks' },
-    { path: '/ai', icon: MessageCircle, label: 'AI Tutor' },
-    { path: '/profile', icon: User, label: 'Profile' },
+    { path: '/tasks', icon: BookOpen, label: 'Conhecimentos' }, // Antes: Tasks
+    { path: '/ai', icon: Swords, label: 'Arena' },             // Antes: AI Tutor
+    { path: '/profile', icon: User, label: 'Perfil' },
   ];
 
   return (
@@ -40,7 +40,7 @@ const Navigation = () => {
                 whileTap={{ scale: 0.9 }}
               >
                 <Icon className="w-6 h-6" />
-                <span className="text-xs mt-1">{tab.label}</span>
+                <span className="text-[10px] font-medium mt-1">{tab.label}</span>
                 {isActive && (
                   <motion.div
                     className="w-1 h-1 bg-purple-400 rounded-full mt-1"

@@ -15,4 +15,4 @@ django-allauth==0.61.1
 dj-rest-auth==5.0.2
 django-redis==5.4.0 
 sqlalchemy
-google-generativeai==0.8.3
+google-generativeai>=0.8.3

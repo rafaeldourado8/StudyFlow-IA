@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     "apps.usuarios",
     "apps.dashboard",
     "apps.ai_tutor",
+    "apps.arena",
 ]
 
 SITE_ID = 1
