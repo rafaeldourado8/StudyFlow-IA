@@ -42,6 +42,15 @@ class TopicMastery(models.Model):
         unique_together = ('user', 'topic') # Um registro por tópico por usuário
         ordering = ['-tier', '-level']
 
+    # --- CORREÇÃO: Método Adicionado ---
+    def get_xp_for_next_level(self):
+        """
+        Retorna XP necessário para o próximo nível.
+        Como o sistema atual sobe de nível por 'vitória', 
+        retornamos um valor estimado para exibição no frontend.
+        """
+        return 100 * self.level
+
     def level_up(self):
         """Lógica de subida de nível e tier"""
         if self.tier == 'platinum' and self.level == 10:
