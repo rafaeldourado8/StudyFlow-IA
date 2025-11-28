@@ -7,7 +7,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.environ.get("SECRET_KEY", "django-insecure-studyflow-dev-key")
 DEBUG = str(os.environ.get("DEBUG", "1")) == "1"
 
-ALLOWED_HOSTS = ["*"]
+ALLOWED_HOSTS = ["*"] # [SEGURANÇA] Em produção, liste os domínios permitidos (ex: ".studyflow.com")
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -48,6 +48,7 @@ SITE_ID = 1
 MIDDLEWARE = [
     "django_prometheus.middleware.PrometheusBeforeMiddleware",
     "django.middleware.security.SecurityMiddleware",
+    "csp.middleware.CSPMiddleware", # [SEGURANÇA] CSP Middleware (Requer 'django-csp')
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "corsheaders.middleware.CorsMiddleware",
@@ -58,6 +59,7 @@ MIDDLEWARE = [
     "allauth.account.middleware.AccountMiddleware", # Social Auth
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "django_prometheus.middleware.PrometheusAfterMiddleware",
+    "csp.middleware.CSPMiddleware",
 ]
 
 ROOT_URLCONF = "config.urls"
@@ -98,6 +100,23 @@ AUTHENTICATION_BACKENDS = (
     "allauth.account.auth_backends.AuthenticationBackend",
 )
 
+# [SEGURANÇA] Validadores de Senha Fortes
+AUTH_PASSWORD_VALIDATORS = [
+    {
+        'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
+    },
+    {
+        'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
+        'OPTIONS': {'min_length': 10}, # Exige mínimo de 10 caracteres
+    },
+    {
+        'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
+    },
+    {
+        'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
+    },
+]
+
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
         "rest_framework_simplejwt.authentication.JWTAuthentication",
@@ -108,6 +127,17 @@ REST_FRAMEWORK = {
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 20,
+    
+    # [SEGURANÇA] Throttling para evitar Brute Force / Ataques Automatizados
+    "DEFAULT_THROTTLE_CLASSES": [
+        "rest_framework.throttling.AnonRateThrottle",
+        "rest_framework.throttling.UserRateThrottle",
+    ],
+    "DEFAULT_THROTTLE_RATES": {
+        "anon": "10/minute",  # 10 req/min para não autenticados
+        "user": "100/minute", # 100 req/min para autenticados
+        "burst": "5/minute",  # Para endpoints críticos
+    },
 }
 
 SIMPLE_JWT = {
@@ -176,3 +206,64 @@ MEDIA_ROOT = os.path.join(BASE_DIR, "media")
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
 CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOW_CREDENTIALS = True
+
+# [SEGURANÇA] Content Security Policy (CSP)
+CSP_DEFAULT_SRC = ("'self'",)
+CSP_STYLE_SRC = ("'self'", "'unsafe-inline'") # Permite estilos inline (comum em React)
+CSP_SCRIPT_SRC = ("'self'",)
+CSP_IMG_SRC = ("'self'", "data:")
+CSP_CONNECT_SRC = ("'self'", "https://accounts.google.com") # Necessário para Login Google
+
+# [SEGURANÇA] Logging Estruturado e Monitoramento
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'security': {
+            'format': '{levelname} {asctime} {module} {message} [IP: {ip}] [User: {user}]',
+            'style': '{',
+        },
+        'verbose': {
+            'format': '{levelname} {asctime} {module} {message}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'verbose',
+        },
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['console'],
+            'level': 'INFO',
+        },
+        'django.security': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'studyflow.security': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+    },
+}
+
+# [SEGURANÇA] Configurações para Produção
+if not DEBUG:
+    # Redireciona todo tráfego HTTP para HTTPS
+    SECURE_SSL_REDIRECT = True
+    # HSTS: Diz ao navegador para sempre usar HTTPS por 1 ano
+    SECURE_HSTS_SECONDS = 31536000
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+    
+    # Cookies seguros (apenas enviados via HTTPS)
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    
+    # Evita que o site seja carregado em iframes (Clickjacking)
+    X_FRAME_OPTIONS = 'DENY'

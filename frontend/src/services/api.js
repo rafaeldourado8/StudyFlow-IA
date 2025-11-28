@@ -3,7 +3,7 @@ import axios from 'axios';
 // CORREÇÃO: Alterado de '/api' para '' (string vazia).
 // Isso evita a duplicação de rota (ex: /api/api/auth/login), pois os arquivos
 // de serviço (auth.js, ai.js, etc) já incluem o prefixo '/api' nas chamadas.
-const API_BASE_URL = import.meta.env.VITE_API_URL ?? '';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost';
 
 const api = axios.create({
   baseURL: API_BASE_URL,

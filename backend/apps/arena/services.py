@@ -5,6 +5,7 @@ import logging
 import google.generativeai as genai
 import google.api_core.exceptions
 from django.conf import settings
+from django.core.exceptions import ValidationError
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +19,31 @@ class ArenaService:
         else:
             self.is_configured = False
             logger.error("❌ GEMINI_API_KEY não encontrada")
-    
+
+    def validate_topic(self, topic: str):
+        """
+        Higieniza e valida o tópico para evitar SSRF/Prompt Injection via input.
+        """
+        # 1. Limite de tamanho
+        if len(topic) > 100:
+            raise ValidationError("Tópico muito longo.")
+            
+        # 2. Whitelist de caracteres (Permite letras, números, espaços e hifens)
+        # Bloqueia caracteres especiais que poderiam ser usados em URLs ou comandos
+        # Permite acentuação em português
+        if not re.match(r'^[\w\s\-áàâãéèêíïóôõöúçñÁÀÂÃÉÈÊÍÏÓÔÕÖÚÇÑ]+$', topic):
+            raise ValidationError("Tópico contém caracteres inválidos.")
+        
+        # 3. Blacklist de termos sensíveis de infraestrutura e protocolos
+        blacklist = [
+            "localhost", "127.0.0.1", "0.0.0.0", "metadata.google.internal", 
+            "http:", "https:", "ftp:", "file:", "gopher:", "ldap:", "dict:"
+        ]
+        
+        normalized_topic = topic.lower()
+        if any(bad in normalized_topic for bad in blacklist):
+            raise ValidationError("Tópico não permitido por segurança.")
+
     def generate_quiz(self, topic: str, difficulty: str = "medium") -> dict:
         """
         Gera um Quiz Gamificado usando o Gemini 1.5 Flash.
@@ -34,6 +59,16 @@ class ArenaService:
             logger.error("API não configurada - verifique GEMINI_API_KEY")
             return {
                 "error": "IA não configurada. Verifique a API KEY no servidor.",
+                "questions": []
+            }
+        
+        # [SEGURANÇA] Validação de Entrada antes de processar qualquer coisa
+        try:
+            self.validate_topic(topic)
+        except ValidationError as e:
+            logger.warning(f"⚠️ Tentativa de input inválido bloqueada: {topic}")
+            return {
+                "error": str(e.message),
                 "questions": []
             }
         

@@ -5,8 +5,9 @@ import MovingBackground from './components/layout/MovingBackground';
 import Navigation from './components/layout/Navigation';
 import LoginForm from './components/auth/LoginForm';
 import TaskList from './components/tasks/TaskList';
-import NeuralGraph from './components/neural/NeuralGraph';
+import HomeDashboard from './components/dashboard/HomeDashboard'; 
 import ChatInterface from './components/ai/ChatInterface';
+import Profile from './components/profile/Profile';
 
 // Protected Route Component
 const ProtectedRoute = ({ children }) => {
@@ -37,16 +38,19 @@ function AppContent() {
         />
         
         {/* Protected Routes */}
+        
+        {/* Home - Dashboard Principal */}
         <Route 
           path="/" 
           element={
             <ProtectedRoute>
-              <NeuralGraph />
+              <HomeDashboard /> 
               <Navigation />
             </ProtectedRoute>
           } 
         />
         
+        {/* Conhecimentos - Lista de Tarefas */}
         <Route 
           path="/tasks" 
           element={
@@ -57,24 +61,23 @@ function AppContent() {
           } 
         />
         
-        {/* Alteração aqui: Navigation removido, agora é controlado pelo ChatInterface */}
+        {/* Arena / AI - Chat Interface */}
         <Route 
           path="/ai" 
           element={
             <ProtectedRoute>
               <ChatInterface />
+              {/* Navigation removido aqui pois o Chat tem controle próprio ou layout específico */}
             </ProtectedRoute>
           } 
         />
         
+        {/* Perfil - Nova Tela de Perfil */}
         <Route 
           path="/profile" 
           element={
             <ProtectedRoute>
-              <div className="min-h-screen p-4 pb-20 relative z-10">
-                <h1 className="text-3xl font-bold text-white">Profile</h1>
-                {/* Profile content here */}
-              </div>
+              <Profile />
               <Navigation />
             </ProtectedRoute>
           } 
