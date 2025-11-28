@@ -57,12 +57,12 @@ function AppContent() {
           } 
         />
         
+        {/* Alteração aqui: Navigation removido, agora é controlado pelo ChatInterface */}
         <Route 
           path="/ai" 
           element={
             <ProtectedRoute>
               <ChatInterface />
-              <Navigation />
             </ProtectedRoute>
           } 
         />
