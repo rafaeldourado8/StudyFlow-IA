@@ -14,13 +14,16 @@ const TaskCard = ({ task, onToggle, onDelete }) => {
       transition={{ duration: 0.3 }}
     >
       <GlassCard 
-        className="p-4 mb-3 flex items-center justify-between group hover:border-purple-500/30"
+        className="p-4 mb-3 flex items-center justify-between group hover:border-purple-500/30 transition-all"
         hover={true}
       >
         {/* Checkbox and Title */}
         <div className="flex items-center space-x-4 flex-1">
           <button
-            onClick={() => onToggle(id)}
+            onClick={(e) => {
+              e.stopPropagation(); // Impede abrir o modal ao clicar no check
+              onToggle(id);
+            }}
             className={`
               w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all duration-300
               ${completed 
@@ -42,7 +45,10 @@ const TaskCard = ({ task, onToggle, onDelete }) => {
 
         {/* Delete Button */}
         <motion.button
-          onClick={() => onDelete(id)}
+          onClick={(e) => {
+            e.stopPropagation(); // Impede abrir o modal ao clicar no delete
+            onDelete(id);
+          }}
           className="p-2 text-gray-400 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100"
           whileHover={{ scale: 1.1 }}
           whileTap={{ scale: 0.9 }}

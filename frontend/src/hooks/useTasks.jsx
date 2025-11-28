@@ -26,10 +26,8 @@ export const TasksProvider = ({ children }) => {
     setIsLoading(true);
     try {
       const response = await api.get('/api/dashboard/tasks/');
-      // Correção: Lida com paginação (results) ou lista direta
       const rawData = response.data.results || response.data;
       
-      // Validação de Segurança
       if (Array.isArray(rawData)) {
         const normalizedTasks = rawData.map(normalizeTask);
         setTasks(normalizedTasks);
@@ -45,10 +43,13 @@ export const TasksProvider = ({ children }) => {
     }
   };
 
-  const addTask = async (title) => {
+  // [ATUALIZADO] Aceita description e aiMetadata
+  const addTask = async (title, description = '', aiMetadata = {}) => {
     try {
       const response = await api.post('/api/dashboard/tasks/', { 
         title,
+        description,
+        ai_metadata: aiMetadata, // Envia o JSON estruturado para o backend
         status: 'pending'
       });
       const newTask = normalizeTask(response.data);

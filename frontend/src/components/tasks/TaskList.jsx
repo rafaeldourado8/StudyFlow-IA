@@ -3,12 +3,16 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Plus } from 'lucide-react';
 import TaskCard from './TaskCard';
 import AddTaskModal from './AddTaskModal';
+import KnowledgeViewerModal from './KnowledgeViewerModal'; // [IMPORTADO]
 import GlassCard from '../ui/GlassCard';
 import { useTasks } from '../../hooks/useTasks';
 
 const TaskList = () => {
   const { tasks, toggleTask, deleteTask, addTask } = useTasks();
   const [isModalOpen, setIsModalOpen] = useState(false);
+  
+  // [NOVO] Estado para guardar qual tarefa está sendo visualizada
+  const [selectedTask, setSelectedTask] = useState(null);
 
   return (
     <div className="min-h-screen p-4 pb-20 relative z-10">
@@ -24,16 +28,18 @@ const TaskList = () => {
         </p>
       </motion.div>
 
-      {/* Knowledge List (Antiga Task List) */}
+      {/* Knowledge List */}
       <div className="space-y-2">
         <AnimatePresence>
           {tasks.map((task) => (
-            <TaskCard
-              key={task.id}
-              task={task}
-              onToggle={toggleTask}
-              onDelete={deleteTask}
-            />
+            // [ATUALIZADO] Adicionado onClick no wrapper do Card
+            <div key={task.id} onClick={() => setSelectedTask(task)} className="cursor-pointer">
+              <TaskCard
+                task={task}
+                onToggle={toggleTask}
+                onDelete={deleteTask}
+              />
+            </div>
           ))}
         </AnimatePresence>
 
@@ -54,11 +60,18 @@ const TaskList = () => {
         <Plus className="w-6 h-6 text-white" />
       </motion.button>
 
-      {/* Add Topic Modal (Antigo Add Task Modal) */}
+      {/* Modais */}
       <AddTaskModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         onAddTask={addTask}
+      />
+
+      {/* [NOVO] Modal de Visualização (Flashcard) */}
+      <KnowledgeViewerModal 
+        isOpen={!!selectedTask}
+        onClose={() => setSelectedTask(null)}
+        task={selectedTask}
       />
     </div>
   );

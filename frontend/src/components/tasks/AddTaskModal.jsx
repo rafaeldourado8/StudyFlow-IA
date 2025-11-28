@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, BrainCircuit, Save, AlertTriangle, Layers, Microscope, LayoutDashboard, Lightbulb } from 'lucide-react';
 import GlassCard from '../ui/GlassCard';
 import GradientButton from '../ui/GradientButton';
-import SkeletonLoader from '../ui/SkeletonLoader'; // Mantenha seu SkeletonLoader original ou use o customizado abaixo
+import SkeletonLoader from '../ui/SkeletonLoader';
 import { aiService } from '../../services/ai';
 
 // Curiosidades para o Loading
@@ -89,25 +89,24 @@ const AddTaskModal = ({ isOpen, onClose, onAddTask }) => {
     }
   };
 
-  // 3. Salvar Tudo
+  // [ATUALIZADO] 3. Salvar Tudo Estruturado
   const handleFinalSave = async () => {
-    let fullDescription = "";
-    
-    // Bloco Inicial
+    // Cria um objeto estruturado unindo as partes para o JSONField
+    const structuredData = {
+      initial: aiData,
+      deep: extraData.deep,
+      patterns: extraData.patterns,
+      troubleshooting: extraData.troubleshooting
+    };
+
+    // Cria uma descrição simples para fallback (visualização antiga ou listagem rápida)
+    let simpleDescription = "";
     if (aiData) {
-      fullDescription += `📚 **Conceito:** ${aiData.definition}\n`;
-      fullDescription += `💡 **Origem:** ${aiData.origin}\n`;
-      fullDescription += `💊 **Resolve:** ${aiData.pain_point}\n`;
-      fullDescription += `✅ **Quando usar:** ${aiData.when_to_use}\n`;
-      fullDescription += `❌ **Evitar:** ${aiData.when_not_to_use}\n\n`;
+      simpleDescription = `${aiData.definition}\n\n${aiData.pain_point}`;
     }
 
-    // Adiciona apenas o que foi carregado
-    if (extraData.deep) fullDescription += `\n--- \n**🔍 Detalhes Técnicos**\n⚠️ Edge Cases: ${extraData.deep.edge_cases}\n⚙️ Internals: ${extraData.deep.advanced_detail}\n`;
-    if (extraData.patterns) fullDescription += `\n--- \n**🏗️ Padrões**\n📐 Patterns: ${extraData.patterns.common_patterns}\n🌟 Práticas: ${extraData.patterns.best_practices}\n`;
-    if (extraData.troubleshooting) fullDescription += `\n--- \n**🐛 Troubleshooting**\n🐞 Bugs: ${extraData.troubleshooting.common_bugs}\n🕵️ Debug: ${extraData.troubleshooting.debugging_tips}\n`;
-
-    await onAddTask(title, fullDescription);
+    // Envia Title, Description e o JSON completo
+    await onAddTask(title, simpleDescription, structuredData);
     
     // Reset total
     setTitle('');
