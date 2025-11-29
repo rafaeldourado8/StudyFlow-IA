@@ -161,6 +161,10 @@ ACCOUNT_USERNAME_REQUIRED = False
 ACCOUNT_AUTHENTICATION_METHOD = 'email'
 ACCOUNT_EMAIL_VERIFICATION = 'none'
 
+# Isso impede que o allauth tente redirecionar para um form de cadastro HTML
+SOCIALACCOUNT_AUTO_SIGNUP = True
+SOCIALACCOUNT_EMAIL_VERIFICATION = 'none'
+
 SOCIALACCOUNT_PROVIDERS = {
     'google': {
         'APP': {
