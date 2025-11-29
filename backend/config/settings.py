@@ -7,7 +7,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.environ.get("SECRET_KEY", "django-insecure-studyflow-dev-key")
 DEBUG = str(os.environ.get("DEBUG", "1")) == "1"
 
-ALLOWED_HOSTS = ["*"] # [SEGURANÇA] Em produção, liste os domínios permitidos (ex: ".studyflow.com")
+ALLOWED_HOSTS = ["*"] 
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -16,7 +16,7 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
-    'django.contrib.sites', # Allauth requer
+    'django.contrib.sites', 
 
     # Libs
     "rest_framework",
@@ -48,7 +48,7 @@ SITE_ID = 1
 MIDDLEWARE = [
     "django_prometheus.middleware.PrometheusBeforeMiddleware",
     "django.middleware.security.SecurityMiddleware",
-    "csp.middleware.CSPMiddleware", # [SEGURANÇA] CSP Middleware (Requer 'django-csp')
+    "csp.middleware.CSPMiddleware", 
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "corsheaders.middleware.CorsMiddleware",
@@ -56,7 +56,7 @@ MIDDLEWARE = [
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
-    "allauth.account.middleware.AccountMiddleware", # Social Auth
+    "allauth.account.middleware.AccountMiddleware", 
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "django_prometheus.middleware.PrometheusAfterMiddleware",
     "csp.middleware.CSPMiddleware",
@@ -100,14 +100,13 @@ AUTHENTICATION_BACKENDS = (
     "allauth.account.auth_backends.AuthenticationBackend",
 )
 
-# [SEGURANÇA] Validadores de Senha Fortes
 AUTH_PASSWORD_VALIDATORS = [
     {
         'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
     },
     {
         'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
-        'OPTIONS': {'min_length': 10}, # Exige mínimo de 10 caracteres
+        'OPTIONS': {'min_length': 10}, 
     },
     {
         'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
@@ -127,24 +126,27 @@ REST_FRAMEWORK = {
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 20,
-    
-    # [SEGURANÇA] Throttling para evitar Brute Force / Ataques Automatizados
     "DEFAULT_THROTTLE_CLASSES": [
         "rest_framework.throttling.AnonRateThrottle",
         "rest_framework.throttling.UserRateThrottle",
     ],
     "DEFAULT_THROTTLE_RATES": {
-        "anon": "10/minute",  # 10 req/min para não autenticados
-        "user": "100/minute", # 100 req/min para autenticados
-        "burst": "5/minute",  # Para endpoints críticos
+        "anon": "10/minute",  
+        "user": "100/minute", 
+        "burst": "5/minute",  
     },
 }
 
+# --- CONFIGURAÇÃO CORRIGIDA DO JWT ---
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(minutes=60),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
     "ROTATE_REFRESH_TOKENS": True,
     "BLACKLIST_AFTER_ROTATION": True,
+    
+    # [IMPORTANTE] Margem de erro para relógios descalibrados (Docker/WSL)
+    # Isso aceita tokens "do futuro" em até 30 segundos
+    "LEEWAY": 30,
 }
 
 REST_AUTH = {
@@ -207,14 +209,12 @@ OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
 CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOW_CREDENTIALS = True
 
-# [SEGURANÇA] Content Security Policy (CSP)
 CSP_DEFAULT_SRC = ("'self'",)
-CSP_STYLE_SRC = ("'self'", "'unsafe-inline'") # Permite estilos inline (comum em React)
+CSP_STYLE_SRC = ("'self'", "'unsafe-inline'") 
 CSP_SCRIPT_SRC = ("'self'",)
 CSP_IMG_SRC = ("'self'", "data:")
-CSP_CONNECT_SRC = ("'self'", "https://accounts.google.com") # Necessário para Login Google
+CSP_CONNECT_SRC = ("'self'", "https://accounts.google.com") 
 
-# [SEGURANÇA] Logging Estruturado e Monitoramento
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
@@ -252,18 +252,11 @@ LOGGING = {
     },
 }
 
-# [SEGURANÇA] Configurações para Produção
 if not DEBUG:
-    # Redireciona todo tráfego HTTP para HTTPS
     SECURE_SSL_REDIRECT = True
-    # HSTS: Diz ao navegador para sempre usar HTTPS por 1 ano
     SECURE_HSTS_SECONDS = 31536000
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
     SECURE_HSTS_PRELOAD = True
-    
-    # Cookies seguros (apenas enviados via HTTPS)
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
-    
-    # Evita que o site seja carregado em iframes (Clickjacking)
     X_FRAME_OPTIONS = 'DENY'

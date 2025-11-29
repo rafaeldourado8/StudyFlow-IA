@@ -4,18 +4,17 @@ import { TasksProvider } from './hooks/useTasks';
 import MovingBackground from './components/layout/MovingBackground';
 import Navigation from './components/layout/Navigation';
 import LoginForm from './components/auth/LoginForm';
+import RegisterForm from './components/auth/RegisterForm'; // Novo
 import TaskList from './components/tasks/TaskList';
 import HomeDashboard from './components/dashboard/HomeDashboard'; 
 import ChatInterface from './components/ai/ChatInterface';
 import Profile from './components/profile/Profile';
 
-// Protected Route Component
 const ProtectedRoute = ({ children }) => {
   const { isAuthenticated } = useAuth();
   return isAuthenticated ? children : <Navigate to="/login" />;
 };
 
-// Public Route Component (redirect if authenticated)
 const PublicRoute = ({ children }) => {
   const { isAuthenticated } = useAuth();
   return !isAuthenticated ? children : <Navigate to="/" />;
@@ -27,7 +26,7 @@ function AppContent() {
       <MovingBackground />
       
       <Routes>
-        {/* Public Routes */}
+        {/* Rotas Públicas */}
         <Route 
           path="/login" 
           element={
@@ -36,10 +35,16 @@ function AppContent() {
             </PublicRoute>
           } 
         />
+        <Route 
+          path="/register" 
+          element={
+            <PublicRoute>
+              <RegisterForm />
+            </PublicRoute>
+          } 
+        />
         
-        {/* Protected Routes */}
-        
-        {/* Home - Dashboard Principal */}
+        {/* Rotas Protegidas */}
         <Route 
           path="/" 
           element={
@@ -49,8 +54,6 @@ function AppContent() {
             </ProtectedRoute>
           } 
         />
-        
-        {/* Conhecimentos - Lista de Tarefas */}
         <Route 
           path="/tasks" 
           element={
@@ -60,19 +63,14 @@ function AppContent() {
             </ProtectedRoute>
           } 
         />
-        
-        {/* Arena / AI - Chat Interface */}
         <Route 
           path="/ai" 
           element={
             <ProtectedRoute>
               <ChatInterface />
-              {/* Navigation removido aqui pois o Chat tem controle próprio ou layout específico */}
             </ProtectedRoute>
           } 
         />
-        
-        {/* Perfil - Nova Tela de Perfil */}
         <Route 
           path="/profile" 
           element={

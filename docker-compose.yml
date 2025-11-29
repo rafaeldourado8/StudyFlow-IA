@@ -17,6 +17,8 @@ services:
     env_file:
       - .env
     environment:
+      # Define o fuso horário para logs legíveis (Opcional, mas recomendado)
+      TZ: America/Sao_Paulo
       DB_HOST: postgres_db
       REDIS_HOST: redis_cache
       CELERY_BROKER_URL: amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@rabbitmq:5672//
@@ -47,6 +49,8 @@ services:
     env_file:
       - .env
     environment:
+      # Define o fuso horário para logs legíveis
+      TZ: America/Sao_Paulo
       DB_HOST: postgres_db
       REDIS_HOST: redis_cache
       CELERY_BROKER_URL: amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@rabbitmq:5672//

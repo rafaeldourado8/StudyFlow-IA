@@ -1,7 +1,7 @@
-from rest_framework import permissions, status, viewsets
+from rest_framework import permissions, status, viewsets, generics
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework.permissions import AllowAny
 from rest_framework_simplejwt.views import TokenObtainPairView
 from .serializers import MyTokenObtainPairSerializer, UsuarioSerializer
 from .models import Usuario
@@ -16,18 +16,22 @@ class MeAPIView(APIView):
         serializer = UsuarioSerializer(request.user)
         return Response(serializer.data)
 
-
 class MyTokenObtainPairView(TokenObtainPairView):
     serializer_class = MyTokenObtainPairSerializer
 
+class RegisterView(generics.CreateAPIView):
+    queryset = Usuario.objects.all()
+    permission_classes = [AllowAny]
+    serializer_class = UsuarioSerializer
 
 class UsuarioViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAdminOrReadOnly]
     queryset = Usuario.objects.all().order_by("-created_at")
     serializer_class = UsuarioSerializer
 
-
+# --- CORREÇÃO AQUI ---
 class GoogleLogin(SocialLoginView):
     adapter_class = GoogleOAuth2Adapter
-    callback_url = "http://localhost:5173"
+    # "postmessage" é a string mágica para o fluxo auth-code com React
+    callback_url = "postmessage" 
     client_class = OAuth2Client
