@@ -4,32 +4,25 @@ on:
   push:
     branches:
       - production
-    paths:
-      - 'backend/**'
-      - 'nginx/**'
-      - 'docker-compose.prod.yml'
-      - '.github/workflows/deploy.yml'
 
 jobs:
-  build-and-deploy:
+  deploy:
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
 
     steps:
-      - name: Checkout do Código
+      - name: Checkout Código
         uses: actions/checkout@v4
 
-      # 1. Login no Docker Hub
-      - name: Login no Docker Hub
+      - name: Login Docker Hub
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      # 2. Build e Push da imagem do Backend
-      - name: Build e Push Backend
+      - name: Build & Push (Backend)
         uses: docker/build-push-action@v5
         with:
           context: ./backend
@@ -37,8 +30,7 @@ jobs:
           push: true
           tags: ${{ secrets.DOCKER_IMAGE }}:latest
 
-      # 3. Copiar arquivos de configuração para a EC2 via SCP
-      - name: Copiar configurações para EC2
+      - name: Copiar Configs via SCP
         uses: appleboy/scp-action@master
         with:
           host: ${{ secrets.EC2_HOST }}
@@ -47,34 +39,26 @@ jobs:
           source: "docker-compose.prod.yml,nginx/nginx.prod.conf"
           target: "/home/${{ secrets.EC2_USER }}/studyflow"
 
-      # 4. Conectar via SSH e fazer o Deploy
-      - name: Deploy na EC2
+      - name: Deploy SSH
         uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
-            # Entrar na pasta do projeto
             cd /home/${{ secrets.EC2_USER }}/studyflow
 
-            # --- RECRIAR O ARQUIVO .ENV COM SEGREDOS DO GITHUB ---
-            echo "Gerando .env seguro..."
+            # --- RECRIAR .ENV ---
+            echo "Gerando .env..."
             echo "DEBUG=0" > .env
             echo "SECRET_KEY=${{ secrets.DJANGO_SECRET_KEY }}" >> .env
             echo "ALLOWED_HOSTS=${{ secrets.ALLOWED_HOSTS }}" >> .env
-            
-            # Banco de Dados
             echo "POSTGRES_DB=${{ secrets.POSTGRES_DB }}" >> .env
             echo "POSTGRES_USER=${{ secrets.POSTGRES_USER }}" >> .env
             echo "POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}" >> .env
             echo "DB_HOST=db" >> .env
             echo "DB_PORT=5432" >> .env
-            
-            # Referência da Imagem
             echo "DOCKER_IMAGE=${{ secrets.DOCKER_IMAGE }}:latest" >> .env
-            
-            # Serviços (Redis/RabbitMQ/Google/AI)
             echo "REDIS_HOST=redis" >> .env
             echo "RABBITMQ_DEFAULT_USER=${{ secrets.RABBITMQ_USER }}" >> .env
             echo "RABBITMQ_DEFAULT_PASS=${{ secrets.RABBITMQ_PASS }}" >> .env
@@ -82,23 +66,13 @@ jobs:
             echo "GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}" >> .env
             echo "GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}" >> .env
 
-            # --- DEPLOY DOCKER ---
-            # Login Docker dentro do servidor (caso repo privado)
+            # --- DEPLOY ---
             echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
-
-            # Baixar nova imagem
+            
             docker compose -f docker-compose.prod.yml pull web
-
-            # Reiniciar containers (apenas o que mudou)
             docker compose -f docker-compose.prod.yml up -d --remove-orphans
-
-            # Rodar Migrations
-            echo "Rodando migrations..."
+            
             docker compose -f docker-compose.prod.yml exec -T web python manage.py migrate --noinput
-
-            # Coletar Estáticos
-            echo "Coletando static files..."
             docker compose -f docker-compose.prod.yml exec -T web python manage.py collectstatic --noinput
-
-            # Limpeza de imagens antigas para não lotar o disco da EC2
+            
             docker image prune -f
