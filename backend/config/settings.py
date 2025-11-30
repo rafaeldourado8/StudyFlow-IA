@@ -264,6 +264,7 @@ LOGGING = {
     },
 }
 
+# Configurações de segurança para produção
 if not DEBUG:
     SECURE_SSL_REDIRECT = True  
     SECURE_HSTS_SECONDS = 31536000
