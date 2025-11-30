@@ -7,7 +7,12 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.environ.get("SECRET_KEY", "django-insecure-studyflow-dev-key")
 DEBUG = str(os.environ.get("DEBUG", "1")) == "1"
 
-ALLOWED_HOSTS = ["*"] 
+ALLOWED_HOSTS = [
+    'studyflow-app.duckdns.org',
+    '34.204.169.84',
+    'localhost',
+    '127.0.0.1',
+] 
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -197,6 +202,8 @@ CACHES = {
 CSRF_TRUSTED_ORIGINS = [
     "http://localhost",
     "http://127.0.0.1",
+    "https://studyflow-app.duckdns.org",
+    "http://studyflow-app.duckdns.org",
 ]
 
 LANGUAGE_CODE = "pt-br"
