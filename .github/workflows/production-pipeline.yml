@@ -1,19 +1,81 @@
-name: Deploy Production (EC2)
+name: Production Pipeline (Test & Deploy)
 
 on:
   push:
-    branches:
-      - production
+    branches: [ "production" ]
 
 jobs:
+  # ====================================================
+  # JOB 1: BLINDAGEM (Testes Automatizados)
+  # ====================================================
+  quality-check:
+    runs-on: ubuntu-latest
+    services:
+      # Sobe um Postgres real para os testes
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_DB: studyflow_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      # Sobe um Redis real para os testes
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+
+    steps:
+      - name: Checkout do Código
+        uses: actions/checkout@v4
+
+      - name: Configurar Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      # Aqui ele já detectaria o erro do requirements.txt antes de tentar buildar Docker
+      - name: Instalar Dependências
+        run: |
+          pip install --upgrade pip
+          pip install -r backend/requirements.txt
+
+      - name: Rodar Testes Pesados (Django)
+        env:
+          SECRET_KEY: 'test-key-not-secret'
+          DEBUG: '1'
+          # Conecta nos serviços que subimos acima
+          DB_HOST: localhost
+          DB_PORT: 5432
+          POSTGRES_DB: studyflow_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: password
+          REDIS_HOST: localhost
+        run: |
+          cd backend
+          # Roda todos os testes que você já criou (usuarios, dashboard, ai_tutor)
+          python manage.py test
+
+  # ====================================================
+  # JOB 2: DEPLOY (Só roda se o JOB 1 passar)
+  # ====================================================
   deploy:
+    needs: quality-check  # <--- O SEGREDO ESTÁ AQUI
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
 
     steps:
-      - name: Checkout Código
+      - name: Checkout
         uses: actions/checkout@v4
 
       - name: Login Docker Hub
@@ -22,7 +84,7 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Build & Push (Backend)
+      - name: Build & Push
         uses: docker/build-push-action@v5
         with:
           context: ./backend
@@ -30,16 +92,7 @@ jobs:
           push: true
           tags: ${{ secrets.DOCKER_IMAGE }}:latest
 
-      - name: Copiar Configs via SCP
-        uses: appleboy/scp-action@master
-        with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ${{ secrets.EC2_USER }}
-          key: ${{ secrets.EC2_SSH_KEY }}
-          source: "docker-compose.prod.yml,nginx/nginx.prod.conf"
-          target: "/home/${{ secrets.EC2_USER }}/studyflow"
-
-      - name: Deploy SSH
+      - name: Deploy na EC2
         uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.EC2_HOST }}
@@ -47,8 +100,8 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
             cd /home/${{ secrets.EC2_USER }}/studyflow
-
-            # --- RECRIAR .ENV ---
+            
+            # Atualiza .env
             echo "Gerando .env..."
             echo "DEBUG=0" > .env
             echo "SECRET_KEY=${{ secrets.DJANGO_SECRET_KEY }}" >> .env
@@ -66,13 +119,12 @@ jobs:
             echo "GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}" >> .env
             echo "GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}" >> .env
 
-            # --- DEPLOY ---
+            # Login e Update
             echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
-            
             docker compose -f docker-compose.prod.yml pull web
             docker compose -f docker-compose.prod.yml up -d --remove-orphans
             
+            # Manutenção
             docker compose -f docker-compose.prod.yml exec -T web python manage.py migrate --noinput
             docker compose -f docker-compose.prod.yml exec -T web python manage.py collectstatic --noinput
-            
             docker image prune -f
