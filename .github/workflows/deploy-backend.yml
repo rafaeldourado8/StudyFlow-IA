@@ -20,63 +20,70 @@ jobs:
       - name: Deploy to EC2
         run: |
           ssh -o StrictHostKeyChecking=no ubuntu@${{ secrets.EC2_HOST }} << 'EOF'
-            # === 1. Configurações ===
+            # === 1. Configurações Iniciais ===
             REPO_DIR=~/StudyFlow-IA
-            # URL pública para garantir que funcione sem autenticação extra
             REPO_URL="https://github.com/rafaeldourado8/StudyFlow-IA.git" 
 
-            # === 2. Lógica Inteligente (Clona ou Atualiza) ===
+            # === 2. Atualização do Repositório ===
             if [ -d "$REPO_DIR" ]; then
               echo "📂 Pasta encontrada. Atualizando..."
               cd $REPO_DIR
               git reset --hard
               git pull origin production
             else
-              echo "⚠️ Pasta não encontrada. Clonando do zero..."
-              # Garante que estamos na home
+              echo "⚠️ Pasta não encontrada. Clonando..."
               cd ~ 
               git clone $REPO_URL $REPO_DIR
               cd $REPO_DIR
             fi
 
-            # === 3. Recria o arquivo .env (Essencial) ===
+            # === 3. Recria o arquivo .env (Método Seguro) ===
             echo "🔧 Restaurando .env..."
-            cat > .env << 'ENVFILE'
-            SECRET_KEY=django-insecure-test-key-change-in-production
-            DEBUG=0
-            ALLOWED_HOSTS=localhost,127.0.0.1,backend,nginx,35.175.103.159
-            POSTGRES_DB=studyflow
-            POSTGRES_USER=studyflow_admin
-            POSTGRES_PASSWORD=senha_temporaria_123
-            DB_HOST=postgres_db
-            DB_PORT=5432
-            RABBITMQ_DEFAULT_USER=rabbit_admin
-            RABBITMQ_DEFAULT_PASS=senha_rabbit_123
-            RABBITMQ_VHOST=/
-            REDIS_HOST=redis_cache
-            REDIS_PORT=6379
-            GEMINI_API_KEY=AIzaSyCgcr7ubvYjyTKX-QhXJADUrCiv4YJr9wM
-            GOOGLE_CLIENT_ID=64508171271-dve9dqr6sig268kdnupn1psi5k9ld518.apps.googleusercontent.com
-            GOOGLE_CLIENT_SECRET=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
-            CELERY_BROKER_URL=amqp://rabbit_admin:senha_rabbit_123@rabbitmq:5672//
-            CELERY_RESULT_BACKEND=db+postgresql://studyflow_admin:senha_temporaria_123@postgres_db:5432/studyflow
-            ENVFILE
-
-            # === 4. Sobe o Backend (Ignora Frontend) ===
-            echo "🚀 Subindo containers..."
             
-            # Derruba tudo primeiro para limpar erros antigos
+            # Limpa arquivo anterior para garantir
+            rm -f .env
+            touch .env
+
+            # Escreve linha por linha para evitar erros de identação
+            echo "SECRET_KEY=django-insecure-test-key-change-in-production" >> .env
+            echo "DEBUG=0" >> .env
+            echo "ALLOWED_HOSTS=localhost,127.0.0.1,backend,nginx,35.175.103.159" >> .env
+            
+            echo "POSTGRES_DB=studyflow" >> .env
+            echo "POSTGRES_USER=studyflow_admin" >> .env
+            echo "POSTGRES_PASSWORD=senha_temporaria_123" >> .env
+            echo "DB_HOST=postgres_db" >> .env
+            echo "DB_PORT=5432" >> .env
+            
+            echo "RABBITMQ_DEFAULT_USER=rabbit_admin" >> .env
+            echo "RABBITMQ_DEFAULT_PASS=senha_rabbit_123" >> .env
+            echo "RABBITMQ_VHOST=/" >> .env
+            
+            echo "REDIS_HOST=redis_cache" >> .env
+            echo "REDIS_PORT=6379" >> .env
+            
+            echo "GEMINI_API_KEY=AIzaSyCgcr7ubvYjyTKX-QhXJADUrCiv4YJr9wM" >> .env
+            
+            echo "GOOGLE_CLIENT_ID=64508171271-dve9dqr6sig268kdnupn1psi5k9ld518.apps.googleusercontent.com" >> .env
+            echo "GOOGLE_CLIENT_SECRET=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" >> .env
+            
+            echo "CELERY_BROKER_URL=amqp://rabbit_admin:senha_rabbit_123@rabbitmq:5672//" >> .env
+            echo "CELERY_RESULT_BACKEND=db+postgresql://studyflow_admin:senha_temporaria_123@postgres_db:5432/studyflow" >> .env
+
+            echo "✅ Arquivo .env gerado com sucesso!"
+
+            # === 4. Sobe o Backend ===
+            echo "🚀 Reiniciando containers..."
+            
+            # Derruba containers antigos
             docker-compose down 
 
-            # Se o arquivo específico de backend existir, usa ele
+            # Verifica qual arquivo usar
             if [ -f "docker-compose-backend.yml" ]; then
-                echo "✅ Usando configuração específica de backend..."
+                echo "✅ Usando configuração backend-only..."
                 docker-compose -f docker-compose-backend.yml up -d --build
             else
-                # Fallback de segurança: usa o arquivo padrão mas sobe só os serviços listados
-                echo "⚠️ docker-compose-backend.yml não encontrado. Usando arquivo padrão filtrado..."
+                echo "⚠️ Usando configuração padrão (fallback)..."
                 docker-compose up -d --build backend backend_worker nginx postgres_db redis_cache rabbitmq
             fi
           EOF
-
-          #
