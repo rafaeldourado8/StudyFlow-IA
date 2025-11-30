@@ -78,3 +78,5 @@ jobs:
                 docker-compose up -d --build backend backend_worker nginx postgres_db redis_cache rabbitmq
             fi
           EOF
+
+          #
