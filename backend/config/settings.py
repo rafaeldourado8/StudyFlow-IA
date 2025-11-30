@@ -90,11 +90,12 @@ WSGI_APPLICATION = "config.wsgi.application"
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
-        "NAME": os.environ.get("POSTGRES_DB", "studyflow"),
-        "USER": os.environ.get("POSTGRES_USER", "postgres"),
-        "PASSWORD": os.environ.get("POSTGRES_PASSWORD", "admin"),
-        "HOST": os.environ.get("DB_HOST", "postgres_db"),
-        "PORT": os.environ.get("DB_PORT", "5432"),
+        # O operador 'or' garante que se a variável vier vazia (""), ele usa o padrão
+        "NAME": os.environ.get("POSTGRES_DB") or "studyflow",
+        "USER": os.environ.get("POSTGRES_USER") or "postgres",
+        "PASSWORD": os.environ.get("POSTGRES_PASSWORD") or "admin",
+        "HOST": os.environ.get("DB_HOST") or "postgres_db",
+        "PORT": os.environ.get("DB_PORT") or "5432",
     }
 }
 
