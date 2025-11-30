@@ -1,55 +1,101 @@
-name: Build and Deploy
+name: Deploy Backend to EC2 (Production)
 
 on:
   push:
-    branches: [ production ]
+    branches:
+      - production  # Branch que você quer usar
+    paths:
+      # CORRIGIDO: Caminhos diretos na raiz, sem prefixo de pasta
+      - 'backend/**'
+      - 'docker-compose.prod.yml'
+      - 'nginx/**'
+      - '.github/workflows/**'
 
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout do código
+        uses: actions/checkout@v4
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Login to Docker Hub
+      - name: Login no Docker Hub
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Build and push image
-        uses: docker/build-push-action@v4
+      - name: Build e Push da Imagem Backend
+        uses: docker/build-push-action@v5
         with:
-          context: .
-          file: backend/Dockerfile
+          # CORRIGIDO: Contexto é a pasta backend na raiz
+          context: ./backend
+          file: ./backend/Dockerfile
           push: true
-          tags: ${{ secrets.DOCKER_IMAGE }}
+          tags: ${{ secrets.DOCKER_IMAGE }}:latest
 
   deploy:
     needs: build-and-push
     runs-on: ubuntu-latest
     steps:
-      - name: Deploy to EC2 via SSH
-        uses: appleboy/ssh-action@v0.1.7
+      - name: Checkout do código
+        uses: actions/checkout@v4
+
+      - name: Copiar arquivos de config via SCP
+        uses: appleboy/scp-action@master
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
-          port: ${{ secrets.EC2_SSH_PORT || 22 }}
+          # CORRIGIDO: Copia os arquivos diretamente da raiz do repo
+          source: "docker-compose.prod.yml,nginx"
+          # Alvo no servidor (baseado no seu script first_deploy.sh)
+          target: "/home/${{ secrets.EC2_USER }}/studyflow"
+
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
           script: |
-            set -e
-            cd /home/${{ secrets.EC2_USER }}/studyflow || cd ~/studyflow || exit 1
+            # Entra na pasta criada no servidor
+            cd /home/${{ secrets.EC2_USER }}/studyflow
 
-            echo "Pulling new image: ${{ secrets.DOCKER_IMAGE }}"
-            docker pull ${{ secrets.DOCKER_IMAGE }}
+            # --- CRIA O ARQUIVO .ENV NO SERVIDOR ---
+            echo "Gerando .env..."
+            echo "DEBUG=0" > .env
+            echo "SECRET_KEY=${{ secrets.DJANGO_SECRET_KEY }}" >> .env
+            echo "ALLOWED_HOSTS=${{ secrets.ALLOWED_HOSTS }}" >> .env
+            
+            # Banco de Dados
+            echo "POSTGRES_DB=${{ secrets.POSTGRES_DB }}" >> .env
+            echo "POSTGRES_USER=${{ secrets.POSTGRES_USER }}" >> .env
+            echo "POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}" >> .env
+            echo "DB_HOST=db" >> .env
+            echo "DB_PORT=5432" >> .env
+            
+            # Aponta para a imagem que acabamos de buildar
+            echo "DOCKER_IMAGE=${{ secrets.DOCKER_IMAGE }}:latest" >> .env
+            
+            # Outros serviços
+            echo "REDIS_HOST=redis" >> .env
+            echo "RABBITMQ_DEFAULT_USER=${{ secrets.RABBITMQ_USER }}" >> .env
+            echo "RABBITMQ_DEFAULT_PASS=${{ secrets.RABBITMQ_PASS }}" >> .env
+            echo "GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}" >> .env
+            echo "GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}" >> .env
+            echo "GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}" >> .env
 
-            echo "Starting/Updating containers"
-            docker-compose -f docker-compose.prod.yml up -d --remove-orphans
-
-            echo "Running migrations"
-            docker-compose -f docker-compose.prod.yml exec -T web python manage.py migrate --noinput
-
-            echo "Collecting static files"
-            docker-compose -f docker-compose.prod.yml exec -T web python manage.py collectstatic --noinput
+            # Login no Docker Hub dentro do servidor
+            echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
+            
+            # Atualiza e reinicia
+            docker compose -f docker-compose.prod.yml pull web
+            docker compose -f docker-compose.prod.yml up -d --remove-orphans
+            
+            # Roda migrations e coleta estáticos
+            echo "Executando tarefas pós-deploy..."
+            docker compose -f docker-compose.prod.yml exec -T web python manage.py migrate --noinput
+            docker compose -f docker-compose.prod.yml exec -T web python manage.py collectstatic --noinput
+            
+            # Limpeza
+            docker image prune -f
