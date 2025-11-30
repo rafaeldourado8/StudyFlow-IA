@@ -1,4 +1,4 @@
-name: Production Pipeline (Test & Deploy)
+name: Production Pipeline (Build, Copy & Deploy)
 
 on:
   push:
@@ -6,12 +6,11 @@ on:
 
 jobs:
   # ====================================================
-  # JOB 1: BLINDAGEM (Testes Automatizados)
+  # JOB 1: CHECK DE QUALIDADE (TESTES)
   # ====================================================
   quality-check:
     runs-on: ubuntu-latest
     services:
-      # Sobe um Postgres real para os testes
       postgres:
         image: postgres:15-alpine
         env:
@@ -20,56 +19,47 @@ jobs:
           POSTGRES_PASSWORD: password
         ports:
           - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
-      # Sobe um Redis real para os testes
+        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
       redis:
         image: redis:7-alpine
         ports:
           - 6379:6379
 
     steps:
-      - name: Checkout do Código
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Configurar Python 3.11
+      - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
           cache: 'pip'
 
-      # Aqui ele já detectaria o erro do requirements.txt antes de tentar buildar Docker
-      - name: Instalar Dependências
+      - name: Install dependencies
         run: |
           pip install --upgrade pip
           pip install -r backend/requirements.txt
 
-      - name: Rodar Testes Pesados (Django)
+      - name: Run Tests
         env:
-          SECRET_KEY: 'test-key-not-secret'
+          SECRET_KEY: 'test-key-safe'
           DEBUG: '1'
-          # Conecta nos serviços que subimos acima
           DB_HOST: localhost
           DB_PORT: 5432
           POSTGRES_DB: studyflow_test
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: password
           REDIS_HOST: localhost
-          GEMINI_API_KEY: 'chave-de-teste-dummy'
+          GEMINI_API_KEY: 'dummy-key'
         run: |
           cd backend
-          # Roda todos os testes que você já criou (usuarios, dashboard, ai_tutor)
           python manage.py test
 
   # ====================================================
-  # JOB 2: DEPLOY (Só roda se o JOB 1 passar)
+  # JOB 2: DEPLOY COMPLETO (DOCKER + NGINX + ENV)
   # ====================================================
   deploy:
-    needs: quality-check  # <--- O SEGREDO ESTÁ AQUI
+    needs: quality-check
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -85,7 +75,8 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Build & Push
+      # 1. BUILD DO BACKEND (DOCKER)
+      - name: Build & Push Backend
         uses: docker/build-push-action@v5
         with:
           context: ./backend
@@ -93,7 +84,19 @@ jobs:
           push: true
           tags: ${{ secrets.DOCKER_IMAGE }}:latest
 
-      - name: Deploy na EC2
+      # 2. COPIA DE ARQUIVOS (NGINX & COMPOSE)
+      # Isso garante que a pasta 'nginx' e o arquivo 'docker-compose.prod.yml' existam no servidor
+      - name: Copy Config Files to EC2
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          source: "docker-compose.prod.yml,nginx"
+          target: "/home/${{ secrets.EC2_USER }}/studyflow"
+
+      # 3. GERAÇÃO DO ENV E START
+      - name: Deploy on EC2
         uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.EC2_HOST }}
@@ -102,8 +105,8 @@ jobs:
           script: |
             cd /home/${{ secrets.EC2_USER }}/studyflow
             
-            # Atualiza .env
-            echo "Gerando .env..."
+            # --- CRIAÇÃO DO ARQUIVO .ENV (DINÂMICO) ---
+            echo "Gerando .env de produção..."
             echo "DEBUG=0" > .env
             echo "SECRET_KEY=${{ secrets.DJANGO_SECRET_KEY }}" >> .env
             echo "ALLOWED_HOSTS=${{ secrets.ALLOWED_HOSTS }}" >> .env
@@ -120,12 +123,21 @@ jobs:
             echo "GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}" >> .env
             echo "GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}" >> .env
 
-            # Login e Update
+            # Login no Docker Hub dentro do servidor
             echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
+            
+            # Atualiza as imagens
             docker compose -f docker-compose.prod.yml pull web
+            
+            # Sobe os containers (Recria o web e nginx se necessário)
             docker compose -f docker-compose.prod.yml up -d --remove-orphans
             
-            # Manutenção
+            # Comandos de manutenção do Django
+            echo "Rodando migrations..."
             docker compose -f docker-compose.prod.yml exec -T web python manage.py migrate --noinput
+            
+            echo "Coletando estáticos..."
             docker compose -f docker-compose.prod.yml exec -T web python manage.py collectstatic --noinput
+            
+            # Limpeza de disco
             docker image prune -f
