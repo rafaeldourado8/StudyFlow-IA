@@ -59,6 +59,7 @@ jobs:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: password
           REDIS_HOST: localhost
+          GEMINI_API_KEY: 'chave-de-teste-dummy'
         run: |
           cd backend
           # Roda todos os testes que você já criou (usuarios, dashboard, ai_tutor)

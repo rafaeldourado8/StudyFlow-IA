@@ -50,7 +50,7 @@ class TaskCRUDTest(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         
         self.task1.refresh_from_db()
-        self.assertTrue(self.task1.completed) # No Model, completed=True se status!=pending? Ajuste conforme sua lógica ou use o campo status direto.
+        self.assertEqual(self.task1.status, 'completed') # No Model, completed=True se status!=pending? Ajuste conforme sua lógica ou use o campo status direto.
         # Se o seu model tem campo 'completed' booleano separado do status, lembre de atualizar os dois ou um só.
         # Assumindo que você atualizou o serializer para aceitar 'status'.
 
