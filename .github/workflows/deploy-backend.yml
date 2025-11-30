@@ -1,0 +1,122 @@
+name: Deploy Backend to EC2
+
+on:
+  push:
+    branches: [production]
+    paths:
+      - 'backend/**'
+      - 'docker-compose.yml'
+      - 'nginx/**'
+      - '.github/workflows/deploy-backend.yml'
+
+env:
+  PROJECT_DIR: /home/ubuntu/studyflow-ia
+  
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🔐 Setup SSH
+        uses: webfactory/ssh-agent@v0.8.0
+        with:
+          ssh-private-key: ${{ secrets.EC2_SSH_KEY }}
+
+      - name: 📝 Add EC2 to known hosts
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
+
+      - name: 🚀 Deploy to EC2
+        env:
+          HOST: ${{ secrets.EC2_HOST }}
+          USER: ${{ secrets.EC2_USERNAME }}
+        run: |
+          ssh $USER@$HOST << 'ENDSSH'
+            set -e
+            
+            echo "📂 Navegando para o diretório do projeto..."
+            cd ${{ env.PROJECT_DIR }}
+            
+            echo "🔄 Atualizando código..."
+            git fetch origin
+            git checkout production
+            git pull origin production
+            
+            echo "📝 Criando arquivo .env de produção..."
+            cat > .env << 'EOF'
+          SECRET_KEY=${{ secrets.SECRET_KEY }}
+          DEBUG=0
+          ALLOWED_HOSTS=localhost,127.0.0.1,backend,nginx,${{ secrets.EC2_HOST }}
+          
+          POSTGRES_DB=${{ secrets.POSTGRES_DB }}
+          POSTGRES_USER=${{ secrets.POSTGRES_USER }}
+          POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
+          DB_HOST=postgres_db
+          DB_PORT=5432
+          
+          RABBITMQ_DEFAULT_USER=${{ secrets.RABBITMQ_DEFAULT_USER }}
+          RABBITMQ_DEFAULT_PASS=${{ secrets.RABBITMQ_DEFAULT_PASS }}
+          RABBITMQ_VHOST=/
+          
+          REDIS_HOST=redis_cache
+          REDIS_PORT=6379
+          
+          GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}
+          
+          GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}
+          
+          CELERY_BROKER_URL=amqp://${{ secrets.RABBITMQ_DEFAULT_USER }}:${{ secrets.RABBITMQ_DEFAULT_PASS }}@rabbitmq:5672//
+          CELERY_RESULT_BACKEND=db+postgresql://${{ secrets.POSTGRES_USER }}:${{ secrets.POSTGRES_PASSWORD }}@postgres_db:5432/${{ secrets.POSTGRES_DB }}
+          EOF
+            
+            echo "🐳 Parando containers existentes..."
+            docker-compose down
+            
+            echo "🏗️ Reconstruindo imagens..."
+            docker-compose build --no-cache backend backend_worker
+            
+            echo "🚀 Iniciando serviços..."
+            docker-compose up -d
+            
+            echo "⏳ Aguardando serviços ficarem prontos..."
+            sleep 30
+            
+            echo "🔍 Verificando status dos containers..."
+            docker-compose ps
+            
+            echo "📊 Logs recentes do backend:"
+            docker-compose logs --tail=50 backend
+            
+            echo "✅ Deploy concluído!"
+          ENDSSH
+
+      - name: 🧪 Health Check
+        run: |
+          echo "🔍 Verificando saúde da aplicação..."
+          sleep 10
+          
+          response=$(curl -s -o /dev/null -w "%{http_code}" http://${{ secrets.EC2_HOST }}/api/auth/login/ || echo "000")
+          
+          if [ "$response" -eq "200" ] || [ "$response" -eq "405" ]; then
+            echo "✅ API está respondendo corretamente (HTTP $response)"
+          else
+            echo "❌ API não está respondendo corretamente (HTTP $response)"
+            exit 1
+          fi
+
+      - name: 📢 Notify Success
+        if: success()
+        run: |
+          echo "🎉 Deploy realizado com sucesso!"
+          echo "🌐 Backend disponível em: http://${{ secrets.EC2_HOST }}"
+          echo "📚 API Docs: http://${{ secrets.EC2_HOST }}/api/schema/swagger-ui/"
+
+      - name: 📢 Notify Failure
+        if: failure()
+        run: |
+          echo "❌ Deploy falhou! Verifique os logs acima."
