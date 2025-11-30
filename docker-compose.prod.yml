@@ -1,5 +1,3 @@
-version: "3.8"
-
 services:
   web:
     image: ${DOCKER_IMAGE}
@@ -12,15 +10,17 @@ services:
       - DB_PORT=5432
       - REDIS_HOST=redis
       - REDIS_PORT=6379
-      - CELERY_BROKER_URL=amqp://${RABBITMQ_USER}:${RABBITMQ_PASS}@rabbitmq:5672//
+      # CORREÇÃO 1: Nomes das variáveis ajustados para bater com o .env gerado
+      - CELERY_BROKER_URL=amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@rabbitmq:5672//
     volumes:
-      - static_volume:/volumes/static
-      - media_volume:/volumes/media
+      - static_volume:/app/staticfiles
+      - media_volume:/app/media
     depends_on:
       - db
       - redis
       - rabbitmq
-    command: gunicorn -c backend/gunicorn_config.py config.wsgi:application
+    # CORREÇÃO 2: Caminho do gunicorn ajustado (removido 'backend/')
+    command: gunicorn -c gunicorn_config.py config.wsgi:application
 
   nginx:
     image: nginx:stable-alpine
@@ -52,7 +52,7 @@ services:
     env_file:
       - .env
     ports:
-      - "15672:15672" # management UI (opcional)
+      - "15672:15672"
 
 volumes:
   pgdata:
