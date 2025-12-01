@@ -34,5 +34,6 @@ class GoogleLogin(SocialLoginView):
     adapter_class = GoogleOAuth2Adapter
     # "postmessage" é a string mágica para o fluxo auth-code com React
     callback_url = "postmessage" 
+    
     # callback_url = "http://localhost"
     client_class = OAuth2Client
