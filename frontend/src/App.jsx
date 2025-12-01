@@ -9,6 +9,7 @@ import TaskList from './components/tasks/TaskList';
 import HomeDashboard from './components/dashboard/HomeDashboard'; 
 import ChatInterface from './components/ai/ChatInterface';
 import Profile from './components/profile/Profile';
+import { UIProvider } from './hooks/useUI';
 
 const ProtectedRoute = ({ children }) => {
   const { isAuthenticated } = useAuth();
@@ -89,9 +90,11 @@ function App() {
   return (
     <Router>
       <AuthProvider>
+        <UIProvider>
         <TasksProvider>
           <AppContent />
         </TasksProvider>
+        </UIProvider>
       </AuthProvider>
     </Router>
   );

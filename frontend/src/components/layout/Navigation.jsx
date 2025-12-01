@@ -3,10 +3,16 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Home, BookOpen, Swords, User } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import GlassCard from '../ui/GlassCard';
+import { useUI } from '../../hooks/useUI';
 
 const Navigation = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  
+  // Pegamos o estado global
+  const { isNavbarVisible } = useUI();
+  
+  // Estado local de scroll
   const [isVisible, setIsVisible] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
 
@@ -38,55 +44,59 @@ const Navigation = () => {
     { path: '/profile', icon: User, label: 'Perfil' },
   ];
 
+  // Lógica Combinada: 
+  // A barra aparece se o scroll permitir (isVisible) E se a UI global permitir (isNavbarVisible)
+  const shouldShow = isVisible && isNavbarVisible;
+
   return (
     <AnimatePresence>
-      <motion.nav
-        className="fixed bottom-0 left-0 right-0 z-50 p-4"
-        initial={{ y: 100, opacity: 0 }}
-        animate={{ 
-          y: isVisible ? 0 : 100, // Esconde movendo para baixo
-          opacity: isVisible ? 1 : 0 
-        }}
-        transition={{ duration: 0.4, ease: "easeInOut" }}
-      >
-        <GlassCard className="p-2 backdrop-blur-xl bg-black/60 border-white/10 shadow-2xl">
-          <div className="flex justify-around items-center">
-            {tabs.map((tab) => {
-              const Icon = tab.icon;
-              const isActive = location.pathname === tab.path;
-              
-              return (
-                <button
-                  key={tab.path}
-                  onClick={() => navigate(tab.path)}
-                  className="relative flex flex-col items-center p-2 rounded-xl transition-all duration-300 group"
-                >
-                  <div className={`p-1.5 rounded-full transition-all duration-300 ${
-                    isActive 
-                      ? 'bg-purple-500/20 text-purple-400' 
-                      : 'text-gray-400 group-hover:text-white group-hover:bg-white/5'
-                  }`}>
-                    <Icon className="w-5 h-5" />
-                  </div>
-                  
-                  <span className={`text-[10px] font-medium mt-1 transition-colors ${
-                    isActive ? 'text-white' : 'text-gray-500'
-                  }`}>
-                    {tab.label}
-                  </span>
+      {shouldShow && (
+        <motion.nav
+          className="fixed bottom-0 left-0 right-0 z-50 p-4"
+          initial={{ y: 100, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          exit={{ y: 100, opacity: 0 }} // Garante a animação suave ao sair
+          transition={{ duration: 0.4, ease: "easeInOut" }}
+        >
+          <GlassCard className="p-2 backdrop-blur-xl bg-black/60 border-white/10 shadow-2xl">
+            <div className="flex justify-around items-center">
+              {tabs.map((tab) => {
+                const Icon = tab.icon;
+                const isActive = location.pathname === tab.path;
+                
+                return (
+                  <button
+                    key={tab.path}
+                    onClick={() => navigate(tab.path)}
+                    className="relative flex flex-col items-center p-2 rounded-xl transition-all duration-300 group"
+                  >
+                    <div className={`p-1.5 rounded-full transition-all duration-300 ${
+                      isActive 
+                        ? 'bg-purple-500/20 text-purple-400' 
+                        : 'text-gray-400 group-hover:text-white group-hover:bg-white/5'
+                    }`}>
+                      <Icon className="w-5 h-5" />
+                    </div>
+                    
+                    <span className={`text-[10px] font-medium mt-1 transition-colors ${
+                      isActive ? 'text-white' : 'text-gray-500'
+                    }`}>
+                      {tab.label}
+                    </span>
 
-                  {isActive && (
-                    <motion.div
-                      className="absolute -bottom-1 w-1 h-1 bg-purple-400 rounded-full"
-                      layoutId="activeTabIndicator"
-                    />
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        </GlassCard>
-      </motion.nav>
+                    {isActive && (
+                      <motion.div
+                        className="absolute -bottom-1 w-1 h-1 bg-purple-400 rounded-full"
+                        layoutId="activeTabIndicator"
+                      />
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </GlassCard>
+        </motion.nav>
+      )}
     </AnimatePresence>
   );
 };

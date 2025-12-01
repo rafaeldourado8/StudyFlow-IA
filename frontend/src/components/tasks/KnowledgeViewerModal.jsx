@@ -1,10 +1,24 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, LayoutDashboard, Microscope, Layers, AlertTriangle, BookOpen } from 'lucide-react';
 import GlassCard from '../ui/GlassCard';
+import { useUI } from '../../hooks/useUI'; // <--- Importação adicionada
 
 const KnowledgeViewerModal = ({ isOpen, onClose, task }) => {
   const [activeTab, setActiveTab] = useState('initial');
+  const { hideNavbar, showNavbar } = useUI(); // <--- Hook do Contexto de UI
+
+  // Efeito para esconder a Navbar quando o modal abrir
+  useEffect(() => {
+    if (isOpen) {
+      hideNavbar();
+    } else {
+      showNavbar();
+    }
+
+    // Cleanup: Garante que a navbar volta se o componente desmontar
+    return () => showNavbar();
+  }, [isOpen, hideNavbar, showNavbar]);
   
   if (!isOpen || !task) return null;
 
