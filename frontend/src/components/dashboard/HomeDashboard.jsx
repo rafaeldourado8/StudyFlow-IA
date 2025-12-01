@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { 
   Play, 
@@ -19,19 +19,48 @@ const HomeDashboard = () => {
   const { user } = useAuth();
   const { tasks } = useTasks();
   const navigate = useNavigate();
+  const [streak, setStreak] = useState(0);
+
+  // --- LÓGICA DE STREAK (FRONTEND ONLY) ---
+  useEffect(() => {
+    const calculateStreak = () => {
+      const today = new Date().toDateString();
+      const lastLogin = localStorage.getItem('last_login_date');
+      let currentStreak = parseInt(localStorage.getItem('user_streak') || '0');
+
+      if (lastLogin !== today) {
+        const yesterday = new Date();
+        yesterday.setDate(yesterday.getDate() - 1);
+        
+        if (lastLogin === yesterday.toDateString()) {
+          // Logou ontem, continua a sequência
+          currentStreak += 1;
+        } else {
+          // Quebrou a sequência ou é o primeiro login
+          currentStreak = 1; 
+        }
+        
+        // Salva os novos dados
+        localStorage.setItem('last_login_date', today);
+        localStorage.setItem('user_streak', currentStreak.toString());
+      }
+      
+      setStreak(currentStreak);
+    };
+
+    calculateStreak();
+  }, []);
 
   // Cálculos rápidos baseados nas tarefas
   const stats = useMemo(() => {
     const total = tasks.length;
     const completed = tasks.filter(t => t.completed).length;
-    // Pega a primeira tarefa pendente (considerando que a lista vem ordenada)
     const nextTask = tasks.find(t => !t.completed); 
     const progress = total === 0 ? 0 : Math.round((completed / total) * 100);
     
     return { total, completed, nextTask, progress };
   }, [tasks]);
 
-  // Saudação baseada no horário
   const greeting = useMemo(() => {
     const hour = new Date().getHours();
     if (hour < 12) return 'Bom dia';
@@ -41,12 +70,7 @@ const HomeDashboard = () => {
 
   const containerVariants = {
     hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: {
-        staggerChildren: 0.1
-      }
-    }
+    visible: { opacity: 1, transition: { staggerChildren: 0.1 } }
   };
 
   const itemVariants = {
@@ -62,7 +86,7 @@ const HomeDashboard = () => {
         animate="visible"
         className="space-y-6"
       >
-        {/* 1. HEADER: Saudação e Status Rápido */}
+        {/* 1. HEADER: Saudação e Streak Funcional */}
         <motion.div variants={itemVariants} className="flex justify-between items-end">
           <div>
             <p className="text-gray-400 text-sm mb-1">{greeting}, {user?.name || 'Estudante'}</p>
@@ -73,13 +97,15 @@ const HomeDashboard = () => {
           <div className="flex flex-col items-end">
             <div className="flex items-center gap-1 text-yellow-400 font-bold bg-yellow-400/10 px-3 py-1 rounded-full border border-yellow-400/20">
               <Zap className="w-4 h-4 fill-current" />
-              <span>3 Dias</span>
+              <span>{streak} Dias</span> {/* Agora mostra o valor real */}
             </div>
-            <span className="text-[10px] text-gray-500 mt-1">Streak Atual</span>
+            <span className="text-[10px] text-gray-500 mt-1">Sequência Atual</span>
           </div>
         </motion.div>
 
-        {/* 2. MAIN CARD: Foco Atual (Next Action) */}
+        {/* ... (Restante do componente igual ao original) ... */}
+        
+        {/* 2. MAIN CARD: Foco Atual */}
         <motion.div variants={itemVariants}>
           <GlassCard className="p-6 relative overflow-hidden group">
             <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
@@ -134,7 +160,6 @@ const HomeDashboard = () => {
               <span className="text-2xl font-bold text-white">{stats.progress}%</span>
               <p className="text-xs text-gray-400">Domínio Total</p>
             </div>
-            {/* Mini Progress Bar */}
             <div className="w-full h-1 bg-gray-700 rounded-full mt-2 overflow-hidden">
               <div className="h-full bg-green-500" style={{ width: `${stats.progress}%` }} />
             </div>
@@ -154,7 +179,7 @@ const HomeDashboard = () => {
           </GlassCard>
         </motion.div>
 
-        {/* 4. WEEKLY ACTIVITY (Visual placeholder) */}
+        {/* 4. WEEKLY ACTIVITY */}
         <motion.div variants={itemVariants}>
           <GlassCard className="p-5">
             <div className="flex items-center justify-between mb-4">
@@ -166,7 +191,6 @@ const HomeDashboard = () => {
               </span>
             </div>
             
-            {/* Gráfico de barras simples */}
             <div className="flex justify-between items-end h-24 gap-2">
               {[40, 70, 30, 85, 50, 90, 20].map((height, i) => (
                 <div key={i} className="flex-1 flex flex-col justify-end gap-2 group">
