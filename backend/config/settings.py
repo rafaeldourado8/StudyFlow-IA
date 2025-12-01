@@ -205,6 +205,7 @@ CSRF_TRUSTED_ORIGINS = [
     "http://127.0.0.1",
     "https://studyflow-app.duckdns.org",
     "http://studyflow-app.duckdns.org",
+    "https://study-flow-ia.vercel.app",
 ]
 
 LANGUAGE_CODE = "pt-br"
@@ -277,8 +278,7 @@ if not DEBUG:
     
     # CORS: Permita apenas seu frontend e localhost para testes
     CORS_ALLOWED_ORIGINS = [
-        "https://studyflow-ia.vercel.app",
-        "https://study-flow-ia.vercel.app", # Vercel pode gerar variações
+        "https://study-flow-ia.vercel.app",
         "http://localhost:5173"
     ]
     # Desative o wildcard para segurança
