@@ -1,7 +1,8 @@
-// frontend/src/App.jsx - VERSÃO OTIMIZADA
+// frontend/src/App.jsx - VERSÃO CORRIGIDA E OTIMIZADA
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { lazy, Suspense } from 'react';
-import { AuthProvider } from './hooks/useAuth';
+// CORREÇÃO AQUI: Adicionado 'useAuth' na importação
+import { AuthProvider, useAuth } from './hooks/useAuth';
 import { TasksProvider } from './hooks/useTasks';
 import MovingBackground from './components/layout/MovingBackground';
 import Navigation from './components/layout/Navigation';
