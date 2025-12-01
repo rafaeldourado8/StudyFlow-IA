@@ -283,3 +283,7 @@ if not DEBUG:
     ]
     # Desative o wildcard para segurança
     CORS_ALLOW_ALL_ORIGINS = False
+
+
+# Permite que o popup do Google converse com a janela principal para finalizar o login
+SECURE_CROSS_ORIGIN_OPENER_POLICY = "same-origin-allow-popups"
