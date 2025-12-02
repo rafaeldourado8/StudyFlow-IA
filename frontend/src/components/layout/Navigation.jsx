@@ -1,4 +1,3 @@
-// frontend/src/components/layout/Navigation.jsx - VERSÃO OTIMIZADA
 import { useState, useEffect, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Home, BookOpen, Swords, User } from 'lucide-react';
@@ -13,7 +12,7 @@ const Navigation = memo(() => {
   
   const [isVisible, setIsVisible] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
-  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const [isMobile, setIsMobile] = useState(typeof window !== 'undefined' ? window.innerWidth < 768 : true);
 
   // Detecta mudanças no tamanho da tela
   useEffect(() => {

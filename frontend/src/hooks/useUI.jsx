@@ -1,5 +1,4 @@
-// frontend/src/hooks/useUI.jsx - VERSÃO OTIMIZADA
-import { useState, useContext, createContext, useCallback, useEffect } from 'react';
+import { useState, useContext, createContext, useCallback, useRef, useEffect } from 'react';
 
 const UIContext = createContext();
 
@@ -11,58 +10,46 @@ export const useUI = () => {
 
 export const UIProvider = ({ children }) => {
   const [isNavbarVisible, setIsNavbarVisible] = useState(true);
-  const [interactionTimeout, setInteractionTimeout] = useState(null);
+  const timeoutRef = useRef(null);
 
-  // Oculta navbar temporariamente durante interações
   const hideNavbarTemporarily = useCallback((duration = 3000) => {
     setIsNavbarVisible(false);
-    
-    // Limpa timeout anterior se existir
-    if (interactionTimeout) {
-      clearTimeout(interactionTimeout);
-    }
-    
-    // Define novo timeout para mostrar novamente
-    const timeout = setTimeout(() => {
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    timeoutRef.current = setTimeout(() => {
       setIsNavbarVisible(true);
+      timeoutRef.current = null;
     }, duration);
-    
-    setInteractionTimeout(timeout);
-  }, [interactionTimeout]);
+  }, []);
 
-  const hideNavbar = useCallback(() => setIsNavbarVisible(false), []);
-  const showNavbar = useCallback(() => setIsNavbarVisible(true), []);
+  const hideNavbar = useCallback(() => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+    setIsNavbarVisible(false);
+  }, []);
 
-  // Detecta interações do usuário (cliques, toques, digitação)
+  const showNavbar = useCallback(() => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+    setIsNavbarVisible(true);
+  }, []);
+
+  // Optional: also listen to global interactions here (if you prefer central handling)
   useEffect(() => {
-    const handleInteraction = () => {
-      // Oculta navbar por 3 segundos quando houver interação
-      hideNavbarTemporarily(3000);
-    };
-
-    // Eventos de interação
-    const events = ['click', 'touchstart', 'keydown', 'scroll'];
-    
-    events.forEach(event => {
-      window.addEventListener(event, handleInteraction, { passive: true });
-    });
-
     return () => {
-      events.forEach(event => {
-        window.removeEventListener(event, handleInteraction);
-      });
-      if (interactionTimeout) {
-        clearTimeout(interactionTimeout);
-      }
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
     };
-  }, [hideNavbarTemporarily, interactionTimeout]);
+  }, []);
 
   return (
-    <UIContext.Provider value={{ 
-      isNavbarVisible, 
-      hideNavbar, 
-      showNavbar,
-      hideNavbarTemporarily 
+    <UIContext.Provider value={{
+      isNavbarVisible,
+      hideNavbarTemporarily,
+      hideNavbar,
+      showNavbar
     }}>
       {children}
     </UIContext.Provider>
