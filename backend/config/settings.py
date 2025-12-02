@@ -21,7 +21,7 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
-    'django.contrib.sites', 
+    'django.contrib.sites',
 
     # Libs
     "rest_framework",
@@ -46,6 +46,7 @@ INSTALLED_APPS = [
     "apps.dashboard",
     "apps.ai_tutor",
     "apps.arena",
+    "apps.journey",
 ]
 
 SITE_ID = 1

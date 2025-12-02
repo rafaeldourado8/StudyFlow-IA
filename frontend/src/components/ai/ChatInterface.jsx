@@ -1,18 +1,21 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Zap, BrainCircuit, AlertTriangle, Star, Medal, Crown } from 'lucide-react';
+import { useLocation, useNavigate } from 'react-router-dom'; // IMPORTANTE
 import GlassCard from '../ui/GlassCard';
 import api from '../../services/api';
 import Navigation from '../layout/Navigation';
-
-// IMPORTS ATUALIZADOS: Componentes estão na mesma pasta ('./')
 import ArenaLobby from './ArenaLobby';
 import ArenaResult from './ArenaResult';
-// Modal continua em UI
 import GameFeedbackModal from '../ui/GameFeedbackModal'; 
 
 const Arena = () => {
-  const [view, setView] = useState('lobby'); // 'lobby' | 'loading' | 'game' | 'result' | 'error'
+  const navigate = useNavigate();
+  const location = useLocation();
+  // Pega o estado passado pelo JourneyMap (se existir)
+  const journeyState = location.state; 
+
+  const [view, setView] = useState('lobby'); 
   const [topic, setTopic] = useState('');
   const [quizData, setQuizData] = useState(null);
   const [currentQIndex, setCurrentQIndex] = useState(0);
@@ -22,16 +25,18 @@ const Arena = () => {
   const [showFeedback, setShowFeedback] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   
-  // Dados do Jogador
   const [myMasteries, setMyMasteries] = useState([]);
   const [currentRun, setCurrentRun] = useState(null); 
   const [roundResult, setRoundResult] = useState(null);
 
+  // NOVO: Verifica se deve iniciar a jornada automaticamente ao montar
   useEffect(() => {
-    if (view === 'lobby') {
-      fetchUserData();
+    if (journeyState?.mode === 'journey' && journeyState.levelId) {
+        startJourneyGame(journeyState.levelId);
+    } else if (view === 'lobby') {
+        fetchUserData();
     }
-  }, [view]);
+  }, []); // Executa uma vez
 
   const fetchUserData = async () => {
     try {
@@ -44,6 +49,36 @@ const Arena = () => {
     }
   };
 
+  // --- START GAME (JORNADA) ---
+  const startJourneyGame = async (levelId) => {
+    setView('loading');
+    setErrorMessage('');
+    setXpGainedInRound(0);
+
+    try {
+        const response = await api.post('/api/journey/start/', { level_id: levelId });
+        if (response.data && response.data.questions) {
+            setQuizData(response.data);
+            // Configura um "currentRun" fake para compatibilidade visual
+            setCurrentRun({
+                topic: "Saga do Código",
+                tier: response.data.journey_meta.is_boss ? 'platinum' : 'gold',
+                level: 'Jornada',
+                journey_meta: response.data.journey_meta // Guarda metadata para usar no final
+            });
+            setScore(0);
+            setCurrentQIndex(0);
+            setView('game');
+        } else {
+            throw new Error("Dados inválidos da Jornada.");
+        }
+    } catch (error) {
+        setErrorMessage("Não foi possível carregar o nível da saga.");
+        setView('error');
+    }
+  };
+
+  // --- START GAME (NORMAL) ---
   const startGame = async (selectedTopic = null) => {
     const topicToPlay = selectedTopic || topic;
     if (!topicToPlay.trim()) return;
@@ -54,7 +89,6 @@ const Arena = () => {
     
     try {
       const response = await api.post('/api/arena/battle/start/', { topic: topicToPlay });
-      
       if (response.data && response.data.questions) {
         setQuizData(response.data);
         setCurrentRun(response.data.player_status);
@@ -65,8 +99,7 @@ const Arena = () => {
         throw new Error("Resposta inválida da Arena.");
       }
     } catch (error) {
-      console.error("Erro start:", error);
-      setErrorMessage(error.response?.data?.error || "O Game Master está offline. Tente novamente.");
+      setErrorMessage(error.response?.data?.error || "O Game Master está offline.");
       setView('error');
     }
   };
@@ -80,7 +113,7 @@ const Arena = () => {
     const isCorrect = index === quizData.questions[currentQIndex].correct_index;
     
     if (isCorrect) {
-      const points = 100 + (currentRun?.level * 10 || 0);
+      const points = 100;
       setScore(s => s + points);
       setXpGainedInRound(s => s + points);
     }
@@ -98,26 +131,56 @@ const Arena = () => {
 
   const finishRound = async () => {
     const passed = xpGainedInRound > 0; 
+    
     try {
-      const response = await api.post('/api/arena/battle/submit/', { 
-        topic: currentRun.topic,
-        xp_gained: xpGainedInRound,
-        passed: passed
-      });
-      setRoundResult({
-        passed,
-        xp: xpGainedInRound,
-        update: response.data.mastery_update
-      });
-      setView('result');
+        let responseData;
+
+        // Se for modo Jornada
+        if (currentRun?.journey_meta) {
+            const res = await api.post('/api/journey/complete/', { 
+                level_id: currentRun.journey_meta.level_id,
+                passed: passed
+            });
+            responseData = {
+                event: passed ? "Nível Completado!" : "Falhou",
+                new_level: "Saga",
+                new_tier: "Hero"
+            };
+        } else {
+            // Modo Arena Normal
+            const res = await api.post('/api/arena/battle/submit/', { 
+                topic: currentRun.topic,
+                xp_gained: xpGainedInRound,
+                passed: passed
+            });
+            responseData = res.data.mastery_update;
+        }
+
+        setRoundResult({
+            passed,
+            xp: xpGainedInRound,
+            update: responseData
+        });
+        setView('result');
+
     } catch (error) {
-      console.error(error);
-      setErrorMessage("Erro ao salvar progresso.");
-      setView('error');
+        console.error(error);
+        setErrorMessage("Erro ao salvar progresso.");
+        setView('error');
     }
   };
 
-  // Funções Auxiliares para o Header do Jogo (Mantido aqui pois é pequeno)
+  // Callback para voltar (se for Jornada volta para /tasks, se não volta pro Lobby)
+  const handleBack = () => {
+    if (journeyState?.mode === 'journey') {
+        navigate('/tasks'); // Volta para o mapa
+    } else {
+        setView('lobby');
+        fetchUserData(); // Recarrega dados
+    }
+  };
+
+  // Funções Visuais
   const getTierColor = (tier) => {
     const t = tier?.toLowerCase();
     if(t === 'platinum') return 'text-cyan-300 border-cyan-500 bg-cyan-900/20 shadow-[0_0_15px_rgba(34,211,238,0.3)]';
@@ -132,18 +195,18 @@ const Arena = () => {
     return <Medal className="w-5 h-5" />;
   }
 
-  // --- RENDERIZAÇÃO ---
+  // --- RENDERIZAÇÃO DE ESTADOS ---
 
   if (view === 'error') {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center p-6 text-center">
         <AlertTriangle className="w-16 h-16 text-red-500 mb-4" />
-        <h2 className="text-xl font-bold text-white mb-2">Falha na Arena</h2>
+        <h2 className="text-xl font-bold text-white mb-2">Ops!</h2>
         <GlassCard className="p-4 mb-6 bg-red-900/20 border-red-500/30">
             <p className="text-red-200 text-sm">{errorMessage}</p>
         </GlassCard>
-        <button onClick={() => setView('lobby')} className="bg-white/10 hover:bg-white/20 text-white py-2 px-6 rounded-xl">
-            Voltar ao Lobby
+        <button onClick={handleBack} className="bg-white/10 hover:bg-white/20 text-white py-2 px-6 rounded-xl">
+            Voltar
         </button>
         <Navigation />
       </div>
@@ -166,8 +229,11 @@ const Arena = () => {
       <ArenaResult 
         roundResult={roundResult} 
         currentRun={currentRun} 
-        onRetry={() => startGame(currentRun.topic)} 
-        onBackToLobby={() => setView('lobby')} 
+        onRetry={() => {
+            if (currentRun.journey_meta) startJourneyGame(currentRun.journey_meta.level_id);
+            else startGame(currentRun.topic);
+        }} 
+        onBackToLobby={handleBack} 
       />
     );
   }
@@ -185,25 +251,24 @@ const Arena = () => {
         </motion.div>
         <h2 className="text-2xl font-bold text-white mb-2">Game Master IA</h2>
         <p className="text-gray-400 max-w-xs mx-auto leading-relaxed">
-            Criando desafios sobre <span className="text-purple-300 font-bold">{topic}</span>...
+            Preparando o desafio...
         </p>
       </div>
     );
   }
 
-  // --- GAME VIEW ---
   if (view === 'game' && currentRun && quizData?.questions) {
     const question = quizData.questions[currentQIndex];
-    if (!question) return <div className="p-10 text-center text-white">Erro dados.<button onClick={() => setView('lobby')}>Sair</button></div>;
+    if (!question) return <div>Erro dados.</div>;
 
     return (
       <div className="min-h-screen p-4 pt-6 pb-32 relative z-10">
-        {/* Header do Jogo */}
+        {/* Header */}
         <div className="flex justify-between items-center mb-8">
             <GlassCard className={`px-4 py-1.5 rounded-full border flex items-center gap-2 ${getTierColor(currentRun.tier)}`}>
                 {getTierIcon(currentRun.tier)}
                 <span className="text-xs font-bold uppercase tracking-wider text-white">
-                    {currentRun.tier} <span className="opacity-50">|</span> Lvl {currentRun.level}
+                    {currentRun.level}
                 </span>
             </GlassCard>
             
@@ -213,7 +278,7 @@ const Arena = () => {
             </div>
         </div>
 
-        {/* Barra de Progresso */}
+        {/* Progresso */}
         <div className="flex gap-1.5 mb-8 px-1">
             {quizData.questions.map((_, idx) => (
               <div key={idx} className={`h-1.5 flex-1 rounded-full transition-all duration-500 ${
@@ -237,8 +302,6 @@ const Arena = () => {
         <div className="space-y-3">
           {question.options.map((opt, idx) => {
             let style = "border-white/10 bg-white/5 hover:bg-white/10 active:scale-98";
-            
-            // Visual feedback imediato no botão (opcional, já que teremos o modal)
             if (showFeedback) {
               if (idx === question.correct_index) style = "border-green-500/50 bg-green-500/10";
               else if (idx === selectedOption) style = "border-red-500/50 bg-red-500/10 opacity-50";
@@ -261,7 +324,6 @@ const Arena = () => {
           })}
         </div>
 
-        {/* --- NOVO COMPONENTE DE POPUP --- */}
         <GameFeedbackModal
           isOpen={showFeedback}
           onClose={() => setShowFeedback(false)}
