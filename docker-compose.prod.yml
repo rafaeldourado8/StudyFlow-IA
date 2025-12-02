@@ -23,14 +23,12 @@ services:
   nginx:
     image: nginx:stable-alpine
     ports:
-      - "80:80"
-      - "443:443"
+      - "8080:80"  # O PULO DO GATO: Mapeia a 8080 do EC2 para a 80 do container
     volumes:
       - ./nginx/nginx.prod.conf:/etc/nginx/conf.d/default.conf:ro
       - static_volume:/volumes/static
       - media_volume:/volumes/media
-      # --- O PULO DO GATO: Mapeia os certificados do servidor para o container ---
-      - /etc/letsencrypt:/etc/letsencrypt:ro
+      # Removemos os certificados daqui, pois o Nginx do Ubuntu vai cuidar do SSL
     depends_on:
       - web
 
