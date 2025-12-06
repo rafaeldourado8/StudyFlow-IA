@@ -7,7 +7,6 @@ import AddTaskModal from './AddTaskModal';
 import KnowledgeViewerModal from './KnowledgeViewerModal';
 import GlassCard from '../ui/GlassCard';
 import { useTasks } from '../../hooks/useTasks';
-import JourneyMap from '../journey/JourneyMap';
 
 const TaskList = () => {
   const { tasks, toggleTask, deleteTask, addTask } = useTasks();
